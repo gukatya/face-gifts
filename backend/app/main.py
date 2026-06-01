@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -56,13 +56,9 @@ def reseed(db: Session = Depends(get_db)):
 
 
 @app.post("/admin/upload-db")
-async def upload_db(file: "UploadFile"):
+async def upload_db(file: UploadFile = File(...)):
     """Temporary endpoint: upload SQLite DB file to /data/face_gifts.db."""
-    from fastapi import UploadFile
-    import shutil
-    db_path = os.getenv("DATABASE_URL", "").replace("sqlite:///", "")
-    if not db_path:
-        db_path = "/data/face_gifts.db"
+    db_path = "/data/face_gifts.db"
     content = await file.read()
     with open(db_path, "wb") as f:
         f.write(content)
