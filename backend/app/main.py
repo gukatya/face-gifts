@@ -55,6 +55,20 @@ def reseed(db: Session = Depends(get_db)):
     return {"seeded": result}
 
 
+@app.post("/admin/upload-db")
+async def upload_db(file: "UploadFile"):
+    """Temporary endpoint: upload SQLite DB file to /data/face_gifts.db."""
+    from fastapi import UploadFile
+    import shutil
+    db_path = os.getenv("DATABASE_URL", "").replace("sqlite:///", "")
+    if not db_path:
+        db_path = "/data/face_gifts.db"
+    content = await file.read()
+    with open(db_path, "wb") as f:
+        f.write(content)
+    return {"status": "ok", "path": db_path, "size": len(content)}
+
+
 # Serve built React frontend (production only).
 # If the /frontend/dist directory exists, mount it as static files.
 _STATIC_DIR = Path(__file__).parent.parent.parent / "frontend" / "dist"
