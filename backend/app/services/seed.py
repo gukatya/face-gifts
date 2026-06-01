@@ -2,7 +2,12 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from ..models import Pigment, Consumable, Nomination
 
-XLSX_PATH = "/Users/gukatya/Downloads/files/База_знаний_FACE_v7.xlsx"
+import os
+from pathlib import Path
+
+# Excel file lives in backend/data/ relative to this file's location
+_HERE = Path(__file__).parent.parent.parent  # backend/
+XLSX_PATH = str(_HERE / "data" / "База_знаний_FACE_v7.xlsx")
 
 
 def _clean(val):
