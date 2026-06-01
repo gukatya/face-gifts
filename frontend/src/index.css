@@ -2,33 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── TT Firs Neue ──────────────────────────────────────────── */
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TTFirsNeue-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/ttfirsneue-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TTFirsNeue-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TTFirsNeue-DemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TTFirsNeue-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "TT Firs Neue";
+  src: url("/fonts/TTFirsNeue-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Base ──────────────────────────────────────────────────── */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+    @apply bg-luxe-grey text-luxe-black font-sans antialiased;
+    font-weight: 300;
+    background: linear-gradient(160deg, #efefef 0%, #dddddd 100%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    font-weight: 500;
+    letter-spacing: -0.02em;
   }
 }
 
+/* ── Components ────────────────────────────────────────────── */
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-500 text-white rounded-lg
-           font-medium text-sm hover:bg-brand-600 transition-colors disabled:opacity-50
-           disabled:cursor-not-allowed;
-  }
-  .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300
-           text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors;
-  }
-  .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none
-           focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white;
-  }
-  .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
-  }
+
+  /* Glass card — primary surface */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-5;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 2px 24px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0,0,0,0.04);
+    @apply rounded-2xl p-5;
   }
+
+  /* Darker glass — for secondary/info surfaces */
+  .card-dark {
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    @apply rounded-2xl p-5 text-white;
+  }
+
+  /* Primary button — black */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5
+           bg-luxe-black text-white rounded-xl
+           font-medium text-sm tracking-wide
+           hover:bg-luxe-grey-dark transition-colors
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary button — white/glass */
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    @apply inline-flex items-center gap-2 px-4 py-2
+           border border-black/10 text-luxe-black rounded-xl
+           font-medium text-sm tracking-wide
+           hover:bg-white transition-colors;
+  }
+
+  /* Input */
+  .input {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    @apply w-full px-4 py-2.5 border border-black/10 rounded-xl
+           text-sm font-light text-luxe-black placeholder-luxe-grey-mid
+           focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-transparent
+           transition;
+  }
+
+  .label {
+    @apply block text-xs font-medium tracking-widest uppercase text-luxe-grey-dark mb-1.5;
+  }
+
+  /* Status / category badge */
   .badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium tracking-wide;
   }
 }
