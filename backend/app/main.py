@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, UploadFile, File
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -54,15 +54,6 @@ def reseed(db: Session = Depends(get_db)):
     result = seed_all(db)
     return {"seeded": result}
 
-
-@app.post("/admin/upload-db")
-async def upload_db(file: UploadFile = File(...)):
-    """Temporary endpoint: upload SQLite DB file to /data/face_gifts.db."""
-    db_path = "/data/face_gifts.db"
-    content = await file.read()
-    with open(db_path, "wb") as f:
-        f.write(content)
-    return {"status": "ok", "path": db_path, "size": len(content)}
 
 
 # Serve built React frontend (production only).
