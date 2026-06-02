@@ -5,6 +5,7 @@ and region-based top-seller rankings.
 """
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -15,8 +16,14 @@ from ..schemas import (
     ConsumableSettingsIn, ConsumableWithSettings,
 )
 from ..services.countries import ALL_REGIONS
+from .auth import require_admin
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+
+class PriceUpdate(BaseModel):
+    price_ru: Optional[float] = None
+    price_eu: Optional[float] = None
 
 
 @router.get("/regions", response_model=List[str])
@@ -41,7 +48,7 @@ def get_region_rankings(region: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.put("/regions/{region}/rankings/{zone}", response_model=RegionRankingOut)
+@router.put("/regions/{region}/rankings/{zone}", response_model=RegionRankingOut, dependencies=[Depends(require_admin)])
 def save_region_rankings(
     region: str,
     zone: str,
@@ -130,7 +137,7 @@ def list_pigments_with_settings(
     return result
 
 
-@router.put("/pigments/{pigment_id}/settings", response_model=PigmentWithSettings)
+@router.put("/pigments/{pigment_id}/settings", response_model=PigmentWithSettings, dependencies=[Depends(require_admin)])
 def save_pigment_settings(
     pigment_id: int,
     data: PigmentSettingsIn,
@@ -241,7 +248,7 @@ def list_consumables_with_settings(
     return result
 
 
-@router.put("/consumables/{consumable_id}/settings", response_model=ConsumableWithSettings)
+@router.put("/consumables/{consumable_id}/settings", response_model=ConsumableWithSettings, dependencies=[Depends(require_admin)])
 def save_consumable_settings(
     consumable_id: int,
     data: ConsumableSettingsIn,
@@ -295,3 +302,34 @@ def save_consumable_settings(
         gift_priority_override=s.gift_priority_override,
         sort_order=s.sort_order,
     )
+
+
+# ── Price editing (admin only) ────────────────────────────────────────────────
+
+@router.patch("/pigments/{pigment_id}/price", dependencies=[Depends(require_admin)])
+def update_pigment_price(pigment_id: int, data: PriceUpdate, db: Session = Depends(get_db)):
+    """Manually update pigment price (persists across redeployments)."""
+    pigment = db.query(Pigment).filter(Pigment.id == pigment_id).first()
+    if not pigment:
+        raise HTTPException(status_code=404, detail="Pigment not found")
+    if data.price_ru is not None:
+        pigment.price_ru = data.price_ru
+    if data.price_eu is not None:
+        pigment.price_eu = data.price_eu
+    db.commit()
+    return {"id": pigment.id, "name": pigment.name, "price_ru": pigment.price_ru, "price_eu": pigment.price_eu}
+
+
+@router.patch("/consumables/{consumable_id}/price", dependencies=[Depends(require_admin)])
+def update_consumable_price(consumable_id: int, data: PriceUpdate, db: Session = Depends(get_db)):
+    """Manually update consumable price (persists across redeployments)."""
+    consumable = db.query(Consumable).filter(Consumable.id == consumable_id).first()
+    if not consumable:
+        raise HTTPException(status_code=404, detail="Consumable not found")
+    if data.price_ru is not None:
+        consumable.price_ru = data.price_ru
+    if data.price_eu is not None:
+        consumable.price_eu = data.price_eu
+    db.commit()
+    return {"id": consumable.id, "name": consumable.name, "price_ru": consumable.price_ru, "price_eu": consumable.price_eu}
+

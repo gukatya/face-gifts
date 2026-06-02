@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from .database import Base, engine, get_db
 from .routers import events, knowledge, catalog, budgets, dashboard
+from .routers.auth import router as auth_router
 from .services.seed import seed_all
 
 Base.metadata.create_all(bind=engine)
@@ -43,6 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/api")
 app.include_router(events.router, prefix="/api")
 app.include_router(knowledge.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")

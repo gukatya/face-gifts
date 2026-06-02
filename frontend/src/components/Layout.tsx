@@ -1,7 +1,29 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Layout() {
   const loc = useLocation();
+  const navigate = useNavigate();
+  const { role, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const navLink = (to: string, label: string) => (
+    <Link
+      to={to}
+      className={`tracking-wide transition-colors ${
+        loc.pathname === to || (to !== "/" && loc.pathname.startsWith(to))
+          ? "text-white font-medium"
+          : "text-white/50 hover:text-white/80"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -12,37 +34,23 @@ export default function Layout() {
             <span className="text-white/40 text-xs font-light tracking-widest uppercase">Gifts</span>
           </Link>
           <nav className="flex items-center gap-6 text-sm">
-            <Link
-              to="/"
-              className={`tracking-wide transition-colors ${
-                loc.pathname === "/"
-                  ? "text-white font-medium"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              Мероприятия
-            </Link>
-            <Link
-              to="/analytics"
-              className={`tracking-wide transition-colors ${
-                loc.pathname.startsWith("/analytics")
-                  ? "text-white font-medium"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              Аналитика
-            </Link>
-            <Link
-              to="/knowledge"
-              className={`tracking-wide transition-colors ${
-                loc.pathname.startsWith("/knowledge")
-                  ? "text-white font-medium"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              База знаний
-            </Link>
+            {navLink("/", "Мероприятия")}
+            {navLink("/analytics", "Аналитика")}
+            {/* Admin: Каталог | Employee: Памятка */}
+            {role === "admin"    && navLink("/knowledge", "Каталог")}
+            {role === "employee" && navLink("/reference", "Памятка")}
           </nav>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/30 tracking-widest uppercase">
+              {role === "admin" ? "Администратор" : "Сотрудник"}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-white/40 hover:text-white/70 transition-colors tracking-wide"
+            >
+              Выйти
+            </button>
+          </div>
         </div>
       </header>
 

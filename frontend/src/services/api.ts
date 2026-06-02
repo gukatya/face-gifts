@@ -10,9 +10,22 @@ import type {
 
 const BASE = "/api";
 
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem("face_auth");
+    if (raw) return (JSON.parse(raw) as { token?: string }).token ?? null;
+  } catch {}
+  return null;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "X-Auth-Token": token } : {}),
+      ...options?.headers,
+    },
     ...options,
   });
   if (!res.ok) {
@@ -103,6 +116,24 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    updatePigmentPrice: (id: number, price_ru?: number, price_eu?: number) =>
+      request<{ id: number; name: string; price_ru: number; price_eu: number }>(
+        `/catalog/pigments/${id}/price`,
+        { method: "PATCH", body: JSON.stringify({ price_ru, price_eu }) }
+      ),
+    updateConsumablePrice: (id: number, price_ru?: number, price_eu?: number) =>
+      request<{ id: number; name: string; price_ru: number; price_eu: number }>(
+        `/catalog/consumables/${id}/price`,
+        { method: "PATCH", body: JSON.stringify({ price_ru, price_eu }) }
+      ),
+  },
+  auth: {
+    login: (password: string) =>
+      request<{ role: "admin" | "employee"; token: string }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      }),
+    me: () => request<{ role: "admin" | "employee" }>("/auth/me"),
   },
   budgets: {
     list: () => request<MonthlyBudget[]>("/budgets/"),

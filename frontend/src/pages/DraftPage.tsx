@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 import type { Event, GiftSet, GiftItem, Nomination } from "../types";
 import type { PigmentWithSettings, ConsumableWithSettings } from "../types/catalog";
 
@@ -48,6 +49,7 @@ export default function DraftPage() {
   const { id } = useParams<{ id: string }>();
   const eventId = Number(id);
   const navigate = useNavigate();
+  const { role } = useAuth();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [sets, setSets] = useState<GiftSet[]>([]);
@@ -379,8 +381,8 @@ export default function DraftPage() {
             {generating ? "Подбираем..." : "Другой вариант"}
           </button>
 
-          {/* Approve / unapprove */}
-          {event.status === "pending" && sets.length > 0 && (
+          {/* Approve / unapprove — admin only */}
+          {role === "admin" && event.status === "pending" && sets.length > 0 && (
             <button
               className="btn-primary text-sm flex items-center gap-1.5"
               onClick={handleApprove}
@@ -391,7 +393,7 @@ export default function DraftPage() {
               Утвердить
             </button>
           )}
-          {event.status === "approved" && (
+          {role === "admin" && event.status === "approved" && (
             <button
               className="btn-secondary text-sm text-black/40"
               onClick={handleUnapprove}

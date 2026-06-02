@@ -8,6 +8,7 @@ import io
 from ..database import get_db
 from ..models import Event, GiftSet
 from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse
+from .auth import require_admin
 
 
 class ShipPayload(BaseModel):
@@ -119,7 +120,7 @@ def generate_event_draft(
     return sets
 
 
-@router.patch("/{event_id}/approve", response_model=EventOut)
+@router.patch("/{event_id}/approve", response_model=EventOut, dependencies=[Depends(require_admin)])
 def approve_event(event_id: int, db: Session = Depends(get_db)):
     """Move event to approved status."""
     event = db.query(Event).filter(Event.id == event_id).first()
@@ -131,7 +132,7 @@ def approve_event(event_id: int, db: Session = Depends(get_db)):
     return event
 
 
-@router.patch("/{event_id}/unapprove", response_model=EventOut)
+@router.patch("/{event_id}/unapprove", response_model=EventOut, dependencies=[Depends(require_admin)])
 def unapprove_event(event_id: int, db: Session = Depends(get_db)):
     """Move approved event back to pending."""
     event = db.query(Event).filter(Event.id == event_id).first()
