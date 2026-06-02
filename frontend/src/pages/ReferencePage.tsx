@@ -116,19 +116,32 @@ function parseFitzpatrick(fitz: string | null | undefined): number[] {
   return [];
 }
 
-function FitzDots({ fitz }: { fitz: string | null | undefined }) {
-  const matched = parseFitzpatrick(fitz);
+const NUM_TO_ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
+
+function FitzBadge({ fitz }: { fitz: string | null | undefined }) {
+  const nums = parseFitzpatrick(fitz);
+  if (!nums.length) return null;
+
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const mid = Math.round((min + max) / 2);
+  const bgColor = FITZ_TYPES[mid - 1]?.color ?? "#ddd";
+  const label = min === max
+    ? NUM_TO_ROMAN[min]
+    : `${NUM_TO_ROMAN[min]}–${NUM_TO_ROMAN[max]}`;
+  // Text color: white for dark tones (V-VI), black for light
+  const textDark = mid <= 3;
+
   return (
-    <div className="flex gap-0.5 shrink-0">
-      {FITZ_TYPES.map((ft, i) => (
-        <div
-          key={ft.type}
-          className={`w-3 h-3 rounded-full border ${matched.includes(i + 1) ? "border-black/20" : "border-transparent opacity-15"}`}
-          style={{ backgroundColor: ft.color }}
-          title={`Fitzpatrick ${ft.type}`}
-        />
-      ))}
-    </div>
+    <span
+      className={`inline-flex items-center shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+        textDark ? "border-black/15 text-black/70" : "border-white/20 text-white"
+      }`}
+      style={{ backgroundColor: bgColor }}
+      title={`Fitzpatrick ${label}`}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -162,52 +175,32 @@ function PigmentsByRegion({ region }: { region: string }) {
     </div>
   );
 
-  // Background color based on midpoint Fitzpatrick type
-  const getFitzBg = (fitz: string | null | undefined): string => {
-    const nums = parseFitzpatrick(fitz);
-    if (!nums.length) return "#F0F0F0";
-    const mid = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-    return FITZ_TYPES[mid - 1]?.color || "#F0F0F0";
-  };
-
-  const isLightBg = (fitz: string | null | undefined): boolean => {
-    const nums = parseFitzpatrick(fitz);
-    if (!nums.length) return true;
-    const mid = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-    return mid <= 3;
-  };
-
   return (
-    <div className="grid grid-cols-2 gap-5">
+    <div className="grid grid-cols-2 gap-6">
       {zones.map((zone) => (
         <div key={zone.zone}>
           <div className="text-xs font-semibold tracking-widest uppercase text-black/40 mb-3">{zone.zone}</div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {zone.rankings.slice(0, 8).map((r, i) => {
               const pig = getPigment(r.pigment_id);
               if (!pig) return null;
-              const bg = getFitzBg(pig.fitzpatrick);
-              const light = isLightBg(pig.fitzpatrick);
               return (
                 <div
                   key={r.pigment_id}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                  style={{ backgroundColor: bg }}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl bg-black/[0.025] hover:bg-black/5 transition-colors"
                 >
-                  <span className={`text-xs font-black w-4 text-right shrink-0 ${light ? "text-black/35" : "text-white/50"}`}>
+                  <span className="text-xs font-black w-4 text-right shrink-0 text-black/25">
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-medium leading-tight truncate ${light ? "text-black/90" : "text-white"}`}>
+                    <div className="text-sm font-medium text-black/90 leading-tight truncate">
                       {pig.name}
                     </div>
                     {pig.line && (
-                      <div className={`text-xs leading-tight truncate ${light ? "text-black/40" : "text-white/55"}`}>
-                        {pig.line}
-                      </div>
+                      <div className="text-xs text-black/35 leading-tight truncate">{pig.line}</div>
                     )}
                   </div>
-                  <FitzDots fitz={pig.fitzpatrick} />
+                  <FitzBadge fitz={pig.fitzpatrick} />
                 </div>
               );
             })}
@@ -361,8 +354,8 @@ export default function ReferencePage() {
             {/* Pigment infographic */}
             <div className="card">
               <p className="text-xs text-black/30 mb-4 tracking-wide">
-                Каждый пигмент окрашен в типичный тон кожи, которому он соответствует.
-                Точки справа — типы Фицпатрика, для которых он подходит.
+                Цвет метки справа — типичный тон кожи, для которого подходит пигмент.
+                Рейтинг составлен для выбранного региона.
               </p>
               <PigmentsByRegion region={selectedRegion} />
             </div>
