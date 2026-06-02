@@ -86,19 +86,33 @@ const REGION_FITZ: Record<string, { min: number; max: number; label: string }> =
 
 // ─── Fitzpatrick helpers ───────────────────────────────────────────────────────
 
-const ROMAN_TO_NUM: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
-
 function parseFitzpatrick(fitz: string | null | undefined): number[] {
   if (!fitz) return [];
-  const str = fitz.trim().toUpperCase();
-  const m = str.match(/^([IVX]+)\s*[-–]\s*([IVX]+)$/);
-  if (m) {
-    const start = ROMAN_TO_NUM[m[1]];
-    const end = ROMAN_TO_NUM[m[2]];
-    if (start && end) return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  const str = fitz.trim().replace("—", "-").replace("–", "-");
+
+  // Numeric range: "2-4", "3-5"
+  const numRange = str.match(/^(\d)\s*-\s*(\d)$/);
+  if (numRange) {
+    const start = parseInt(numRange[1]);
+    const end = parseInt(numRange[2]);
+    if (start >= 1 && end <= 6 && start <= end)
+      return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }
-  const n = ROMAN_TO_NUM[str];
-  if (n) return [n];
+  // Single numeric: "3"
+  const single = parseInt(str);
+  if (!isNaN(single) && single >= 1 && single <= 6) return [single];
+
+  // Roman range: "II-IV", "III-V"
+  const ROMAN: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
+  const upper = str.toUpperCase();
+  const romRange = upper.match(/^([IVX]+)\s*-\s*([IVX]+)$/);
+  if (romRange) {
+    const s = ROMAN[romRange[1]], e = ROMAN[romRange[2]];
+    if (s && e) return Array.from({ length: e - s + 1 }, (_, i) => s + i);
+  }
+  const rom = ROMAN[upper];
+  if (rom) return [rom];
+
   return [];
 }
 
