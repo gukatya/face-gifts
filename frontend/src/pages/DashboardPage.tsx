@@ -31,9 +31,9 @@ const ZONE_META: Record<Zone, { label: string; dot: string }> = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  draft:    { label: "Черновик",  cls: "bg-black/10 text-black/50" },
-  pending:  { label: "Ожидает",   cls: "bg-black/90 text-white" },
-  approved: { label: "Утверждён", cls: "bg-luxe-silver text-black/70" },
+  draft:    { label: "Черновик",          cls: "bg-black/10 text-black/50" },
+  pending:  { label: "Наборы подобраны",  cls: "bg-luxe-silver text-black/70" },
+  approved: { label: "Утверждён",         cls: "bg-luxe-black text-white" },
 };
 
 function sortEvents(events: Event[], mode: SortMode): Event[] {

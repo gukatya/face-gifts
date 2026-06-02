@@ -53,6 +53,10 @@ export const api = {
       }),
     unship: (id: number) =>
       request<Event>(`/events/${id}/unship`, { method: "PATCH" }),
+    approve: (id: number) =>
+      request<Event>(`/events/${id}/approve`, { method: "PATCH" }),
+    unapprove: (id: number) =>
+      request<Event>(`/events/${id}/unapprove`, { method: "PATCH" }),
   },
   calculator: {
     calc: (data: { nominations: Nomination[]; grand_prix_count: number; giveaways_count: number; participants_count: number }) =>

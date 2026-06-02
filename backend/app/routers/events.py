@@ -112,8 +112,36 @@ def generate_event_draft(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     sets = generate_draft(db, event, variant=variant)
+    # Auto-advance: draft → pending once sets exist
+    if event.status == "draft":
+        event.status = "pending"
     db.commit()
     return sets
+
+
+@router.patch("/{event_id}/approve", response_model=EventOut)
+def approve_event(event_id: int, db: Session = Depends(get_db)):
+    """Move event to approved status."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.status = "approved"
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.patch("/{event_id}/unapprove", response_model=EventOut)
+def unapprove_event(event_id: int, db: Session = Depends(get_db)):
+    """Move approved event back to pending."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.status == "approved":
+        event.status = "pending"
+    db.commit()
+    db.refresh(event)
+    return event
 
 
 @router.get("/{event_id}/sets", response_model=list[GiftSetOut])

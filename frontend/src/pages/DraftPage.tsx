@@ -172,6 +172,16 @@ export default function DraftPage() {
     setTargetBudget(null);
   };
 
+  const handleApprove = async () => {
+    const updated = await api.events.approve(eventId);
+    setEvent(updated);
+  };
+
+  const handleUnapprove = async () => {
+    const updated = await api.events.unapprove(eventId);
+    setEvent(updated);
+  };
+
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -334,11 +344,13 @@ export default function DraftPage() {
               {event.level}
             </span>
             <span className={`badge ${
-              event.status === "draft" ? "bg-black/10 text-black/50"
+              event.status === "draft"    ? "bg-black/10 text-black/50"
               : event.status === "approved" ? "bg-luxe-black text-white"
-              : "bg-luxe-silver text-black/60"
+              : "bg-luxe-silver text-black/70"
             }`}>
-              {event.status === "draft" ? "Черновик" : event.status === "approved" ? "Утверждён" : "На проверке"}
+              {event.status === "draft" ? "Черновик"
+                : event.status === "approved" ? "Утверждён"
+                : "Наборы подобраны"}
             </span>
           </div>
         </div>
@@ -366,8 +378,31 @@ export default function DraftPage() {
           >
             {generating ? "Подбираем..." : "Другой вариант"}
           </button>
+
+          {/* Approve / unapprove */}
+          {event.status === "pending" && sets.length > 0 && (
+            <button
+              className="btn-primary text-sm flex items-center gap-1.5"
+              onClick={handleApprove}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Утвердить
+            </button>
+          )}
+          {event.status === "approved" && (
+            <button
+              className="btn-secondary text-sm text-black/40"
+              onClick={handleUnapprove}
+              title="Снять утверждение"
+            >
+              Снять утверждение
+            </button>
+          )}
+
           <button
-            className="btn-primary text-sm"
+            className="btn-secondary text-sm"
             onClick={handleExport}
             disabled={exporting || sets.length === 0}
           >
