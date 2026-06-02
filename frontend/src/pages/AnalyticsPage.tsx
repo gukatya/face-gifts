@@ -215,7 +215,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   // Budget edit state
-  const [editingBudget, setEditingBudget] = useState<string | null>(null); // month
+  const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
 
   // Items month selector
@@ -224,11 +224,23 @@ export default function AnalyticsPage() {
   // Calendar base month
   const [calBase, setCalBase] = useState<string>(addMonths(todayYm(), -1));
 
+  // Ship from deadline card
+  const [shippingId, setShippingId] = useState<number | null>(null);
+  const [shipDate, setShipDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
   useEffect(() => {
     Promise.all([api.events.list(), api.dashboard.stats()])
       .then(([evs, st]) => { setEvents(evs); setStats(st); })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleShip = async (id: number) => {
+    await api.events.ship(id, shipDate);
+    const [evs, st] = await Promise.all([api.events.list(), api.dashboard.stats()]);
+    setEvents(evs);
+    setStats(st);
+    setShippingId(null);
+  };
 
   const saveBudget = async (month: string) => {
     const val = parseInt(budgetInput.replace(/\s/g, ""), 10);
@@ -268,30 +280,68 @@ export default function AnalyticsPage() {
             {upcoming_deadlines.map((d) => {
               const overdue = d.days_until_ship < 0;
               const hot = !overdue && d.days_until_ship <= 7;
+              const isShipping = shippingId === d.id;
               return (
-                <div key={d.id} className={`card flex items-center justify-between gap-4 border-l-4 ${
+                <div key={d.id} className={`card border-l-4 ${
                   overdue ? "border-red-500" : hot ? "border-amber-400" : "border-black/20"
                 }`}>
-                  <div>
-                    <div className="flex items-center gap-2.5 mb-1">
-                      <Link to={`/events/${d.id}/draft`} className="font-semibold text-luxe-black hover:underline">
-                        {d.name}
-                      </Link>
-                      <span className="badge bg-black/10 text-black/50">{d.level}</span>
-                    </div>
-                    <div className="text-xs text-black/40 font-light flex gap-4">
-                      <span>Ивент: {d.date}</span>
-                      <span>Отгрузить до: {d.ship_by}</span>
-                      <span>{d.region} · {d.country}</span>
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left: info — whole block is a link */}
+                    <Link
+                      to={`/events/${d.id}/draft`}
+                      className="flex-1 min-w-0 group"
+                    >
+                      <div className="flex items-center gap-2.5 mb-1">
+                        <span className="font-semibold text-luxe-black group-hover:underline">{d.name}</span>
+                        <span className="badge bg-black/10 text-black/50">{d.level}</span>
+                      </div>
+                      <div className="text-xs text-black/40 font-light flex flex-wrap gap-4">
+                        <span>Ивент: {d.date}</span>
+                        <span>Отгрузить до: {d.ship_by}</span>
+                        <span>{d.region} · {d.country}</span>
+                      </div>
+                    </Link>
+
+                    {/* Right: urgency + ship button */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className={`text-sm font-black ${overdue ? "text-red-500" : hot ? "text-amber-600" : "text-black/50"}`}>
+                        {overdue
+                          ? `Просрочено на ${Math.abs(d.days_until_ship)} дн.`
+                          : d.days_until_ship === 0
+                          ? "Сегодня!"
+                          : `${d.days_until_ship} дн.`}
+                      </div>
+                      <button
+                        className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 shrink-0"
+                        onClick={() => { setShippingId(d.id); setShipDate(new Date().toISOString().slice(0,10)); }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8 5-8-5m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-8-5-8 5" />
+                        </svg>
+                        Отгрузить
+                      </button>
                     </div>
                   </div>
-                  <div className={`text-sm font-black shrink-0 ${overdue ? "text-red-500" : hot ? "text-amber-600" : "text-black/50"}`}>
-                    {overdue
-                      ? `Просрочено на ${Math.abs(d.days_until_ship)} дн.`
-                      : d.days_until_ship === 0
-                      ? "Сегодня!"
-                      : `${d.days_until_ship} дн.`}
-                  </div>
+
+                  {/* Inline ship date picker */}
+                  {isShipping && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
+                      <span className="text-xs text-black/40">Дата отгрузки:</span>
+                      <input
+                        type="date"
+                        value={shipDate}
+                        onChange={(e) => setShipDate(e.target.value)}
+                        className="input text-xs py-1 px-2 w-36"
+                        autoFocus
+                      />
+                      <button className="btn-primary text-xs py-1 px-3" onClick={() => handleShip(d.id)}>
+                        Сохранить
+                      </button>
+                      <button className="btn-secondary text-xs py-1 px-3" onClick={() => setShippingId(null)}>
+                        Отмена
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -381,7 +431,9 @@ export default function AnalyticsPage() {
               )}
               {monthly_stats.map((s) => {
                 const isEditing = editingBudget === s.month;
-                const delta = s.actual_cost - s.planned;
+                // delta: positive = under budget (green), negative = over budget (red)
+                const hasBoth = s.planned > 0 && s.actual_cost > 0;
+                const savings = s.planned - s.actual_cost; // positive = saved money
                 return (
                   <tr key={s.month} className="border-b border-black/5 hover:bg-black/5">
                     <td className="px-5 py-3 font-medium text-luxe-black">{monthLabel(s.month)}</td>
@@ -413,13 +465,12 @@ export default function AnalyticsPage() {
                       {s.actual_cost > 0 ? s.actual_cost.toLocaleString("ru-RU") : "—"}
                     </td>
                     <td className={`px-5 py-3 text-right text-xs font-medium ${
-                      s.planned === 0 ? "text-black/20"
-                        : delta > 0 ? "text-red-500"
-                        : delta < 0 ? "text-black/40"
-                        : "text-black/30"
+                      !hasBoth ? "text-black/20"
+                        : savings >= 0 ? "text-green-600"
+                        : "text-red-500"
                     }`}>
-                      {s.planned > 0 && s.actual_cost > 0
-                        ? (delta > 0 ? "+" : "") + delta.toLocaleString("ru-RU")
+                      {hasBoth
+                        ? (savings >= 0 ? "+" : "") + savings.toLocaleString("ru-RU")
                         : "—"}
                     </td>
                     <td className="px-3 py-3">

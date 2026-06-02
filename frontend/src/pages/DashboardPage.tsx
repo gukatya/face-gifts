@@ -5,7 +5,7 @@ import type { Event } from "../types";
 
 const SHIP_DAYS = 14; // ship gifts this many days before the event
 
-type SortMode = "created_desc" | "date_asc" | "date_desc";
+type SortMode = "created_asc" | "created_desc" | "date_asc" | "date_desc";
 
 type Zone = "overdue" | "urgent" | "upcoming" | "past";
 
@@ -38,9 +38,10 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
 
 function sortEvents(events: Event[], mode: SortMode): Event[] {
   return [...events].sort((a, b) => {
+    if (mode === "created_asc")  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     if (mode === "created_desc") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    if (mode === "date_asc") return a.date.localeCompare(b.date);
-    if (mode === "date_desc") return b.date.localeCompare(a.date);
+    if (mode === "date_asc")     return a.date.localeCompare(b.date);
+    if (mode === "date_desc")    return b.date.localeCompare(a.date);
     return 0;
   });
 }
@@ -114,8 +115,13 @@ export default function DashboardPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="flex gap-1 ml-auto">
-          {([ ["date_asc","По дате ↑"], ["date_desc","По дате ↓"], ["created_desc","По добавлению"] ] as [SortMode, string][]).map(([key, label]) => (
+        <div className="flex gap-1 ml-auto flex-wrap">
+          {([
+            ["date_asc",     "По мероприятию ↑"],
+            ["date_desc",    "По мероприятию ↓"],
+            ["created_asc",  "По добавлению ↑"],
+            ["created_desc", "По добавлению ↓"],
+          ] as [SortMode, string][]).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setSort(key)}
@@ -213,6 +219,7 @@ export default function DashboardPage() {
                           {/* Ship date picker */}
                           {isSettingShip && (
                             <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-black/40">Дата отгрузки:</span>
                               <input
                                 type="date"
                                 value={shipDate}
