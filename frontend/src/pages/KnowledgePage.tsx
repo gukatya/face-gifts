@@ -315,6 +315,9 @@ function PigmentsTab({ regions }: { regions: string[] }) {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<Record<number, string>>({});
   const debounceTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const [priceEditId, setPriceEditId] = useState<number | null>(null);
+  const [priceRu, setPriceRu] = useState("");
+  const [priceEu, setPriceEu] = useState("");
 
   const regionOptions = ["Глобально", ...regions];
   const zoneOptions = ["Все", "Брови", "Губы", "Веки"];
@@ -366,6 +369,27 @@ function PigmentsTab({ regions }: { regions: string[] }) {
     debounceTimers.current[pig.id] = setTimeout(() => {
       saveSettings({ ...pig, ...patch }, patch as Partial<PigmentSettingsIn>);
     }, 600);
+  };
+
+  const startPriceEdit = (pig: PigmentWithSettings) => {
+    setPriceEditId(pig.id);
+    setPriceRu(pig.price_ru != null ? String(Math.round(pig.price_ru)) : "");
+    setPriceEu(pig.price_eu != null ? String(Math.round(pig.price_eu)) : "");
+  };
+
+  const savePriceEdit = async () => {
+    if (!priceEditId) return;
+    try {
+      const result = await api.catalog.updatePigmentPrice(
+        priceEditId,
+        priceRu ? Number(priceRu) : undefined,
+        priceEu ? Number(priceEu) : undefined,
+      );
+      setPigments((prev) =>
+        prev.map((p) => p.id === priceEditId ? { ...p, price_ru: result.price_ru, price_eu: result.price_eu } : p)
+      );
+    } catch { /* ignore */ }
+    setPriceEditId(null);
   };
 
   return (
@@ -435,8 +459,40 @@ function PigmentsTab({ regions }: { regions: string[] }) {
                     <div className="text-xs text-gray-400">{pig.line} · {pig.zone}</div>
                   </td>
                   <td className="px-4 py-2.5 text-gray-600">{pig.fitzpatrick || "—"}</td>
-                  <td className="px-4 py-2.5 text-gray-600">
-                    {pig.price_ru ? `${pig.price_ru.toLocaleString("ru")} ₽` : "—"}
+                  <td className="px-4 py-2.5">
+                    {priceEditId === pig.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          className="input text-xs py-0.5 w-20 text-right"
+                          value={priceRu}
+                          onChange={(e) => setPriceRu(e.target.value)}
+                          placeholder="₽"
+                          autoFocus
+                          onKeyDown={(e) => { if (e.key === "Enter") savePriceEdit(); if (e.key === "Escape") setPriceEditId(null); }}
+                        />
+                        <span className="text-xs text-black/30">₽</span>
+                        <input
+                          type="number"
+                          className="input text-xs py-0.5 w-20 text-right"
+                          value={priceEu}
+                          onChange={(e) => setPriceEu(e.target.value)}
+                          placeholder="€"
+                          onKeyDown={(e) => { if (e.key === "Enter") savePriceEdit(); if (e.key === "Escape") setPriceEditId(null); }}
+                        />
+                        <span className="text-xs text-black/30">€</span>
+                        <button onClick={savePriceEdit} className="text-xs font-semibold text-green-600 hover:text-green-700 px-1">OK</button>
+                        <button onClick={() => setPriceEditId(null)} className="text-xs text-black/30 hover:text-black/60">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group cursor-pointer" onClick={() => startPriceEdit(pig)}>
+                        <span className="text-gray-600">{pig.price_ru ? `${pig.price_ru.toLocaleString("ru")} ₽` : "—"}</span>
+                        {pig.price_eu != null && pig.price_eu > 0 && (
+                          <span className="text-gray-400 text-xs">{pig.price_eu.toLocaleString("ru")} €</span>
+                        )}
+                        <span className="opacity-0 group-hover:opacity-100 text-black/25 text-xs transition-opacity select-none">✏</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     <input
@@ -502,6 +558,9 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
   const [consumables, setConsumables] = useState<ConsumableWithSettings[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const [cPriceEditId, setCPriceEditId] = useState<number | null>(null);
+  const [cPriceRu, setCPriceRu] = useState("");
+  const [cPriceEu, setCPriceEu] = useState("");
 
   const regionOptions = ["Глобально", ...regions];
 
@@ -546,6 +605,27 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
     debounceTimers.current[c.id] = setTimeout(() => {
       saveSettings({ ...c, ...patch }, patch as Partial<ConsumableSettingsIn>);
     }, 600);
+  };
+
+  const startCPriceEdit = (c: ConsumableWithSettings) => {
+    setCPriceEditId(c.id);
+    setCPriceRu(c.price_ru != null ? String(Math.round(c.price_ru)) : "");
+    setCPriceEu(c.price_eu != null ? String(Math.round(c.price_eu)) : "");
+  };
+
+  const saveCPriceEdit = async () => {
+    if (!cPriceEditId) return;
+    try {
+      const result = await api.catalog.updateConsumablePrice(
+        cPriceEditId,
+        cPriceRu ? Number(cPriceRu) : undefined,
+        cPriceEu ? Number(cPriceEu) : undefined,
+      );
+      setConsumables((prev) =>
+        prev.map((x) => x.id === cPriceEditId ? { ...x, price_ru: result.price_ru, price_eu: result.price_eu } : x)
+      );
+    } catch { /* ignore */ }
+    setCPriceEditId(null);
   };
 
   const filtered = consumables.filter(
@@ -609,8 +689,40 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
                     <div className="text-xs text-gray-400">{c.category}</div>
                   </td>
                   <td className="px-4 py-2.5 text-gray-600">{c.zone || "—"}</td>
-                  <td className="px-4 py-2.5 text-gray-600">
-                    {c.price_ru ? `${c.price_ru.toLocaleString("ru")} ₽` : "—"}
+                  <td className="px-4 py-2.5">
+                    {cPriceEditId === c.id ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          className="input text-xs py-0.5 w-20 text-right"
+                          value={cPriceRu}
+                          onChange={(e) => setCPriceRu(e.target.value)}
+                          placeholder="₽"
+                          autoFocus
+                          onKeyDown={(e) => { if (e.key === "Enter") saveCPriceEdit(); if (e.key === "Escape") setCPriceEditId(null); }}
+                        />
+                        <span className="text-xs text-black/30">₽</span>
+                        <input
+                          type="number"
+                          className="input text-xs py-0.5 w-20 text-right"
+                          value={cPriceEu}
+                          onChange={(e) => setCPriceEu(e.target.value)}
+                          placeholder="€"
+                          onKeyDown={(e) => { if (e.key === "Enter") saveCPriceEdit(); if (e.key === "Escape") setCPriceEditId(null); }}
+                        />
+                        <span className="text-xs text-black/30">€</span>
+                        <button onClick={saveCPriceEdit} className="text-xs font-semibold text-green-600 hover:text-green-700 px-1">OK</button>
+                        <button onClick={() => setCPriceEditId(null)} className="text-xs text-black/30 hover:text-black/60">✕</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group cursor-pointer" onClick={() => startCPriceEdit(c)}>
+                        <span className="text-gray-600">{c.price_ru ? `${c.price_ru.toLocaleString("ru")} ₽` : "—"}</span>
+                        {c.price_eu != null && c.price_eu > 0 && (
+                          <span className="text-gray-400 text-xs">{c.price_eu.toLocaleString("ru")} €</span>
+                        )}
+                        <span className="opacity-0 group-hover:opacity-100 text-black/25 text-xs transition-opacity select-none">✏</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <select

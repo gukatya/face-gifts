@@ -67,21 +67,60 @@ const REGION_FITZ: Record<string, { min: number; max: number; label: string }> =
   "СНГ":               { min: 2, max: 3, label: "II–III" },
   "Кавказ":            { min: 3, max: 4, label: "III–IV" },
   "Центральная Азия":  { min: 2, max: 4, label: "II–IV" },
+  "Турция":            { min: 3, max: 4, label: "III–IV" },
+  "Балканы":           { min: 2, max: 4, label: "II–IV" },
+  "Западная Европа":   { min: 1, max: 3, label: "I–III" },
   "Ближний Восток":    { min: 3, max: 5, label: "III–V" },
   "Европа":            { min: 1, max: 3, label: "I–III" },
   "ЮВА":               { min: 3, max: 5, label: "III–V" },
+  "Восточная Азия":    { min: 2, max: 4, label: "II–IV" },
   "Китай":             { min: 2, max: 4, label: "II–IV" },
   "Латинская Америка": { min: 3, max: 5, label: "III–V" },
+  "Северная Америка":  { min: 1, max: 4, label: "I–IV" },
   "Африка":            { min: 5, max: 6, label: "V–VI" },
+  "Южная Азия":        { min: 4, max: 6, label: "IV–VI" },
   "США/Канада":        { min: 1, max: 4, label: "I–IV" },
   "Австралия":         { min: 1, max: 3, label: "I–III" },
-  "Южная Азия":        { min: 4, max: 6, label: "IV–VI" },
   "Япония/Корея":      { min: 2, max: 4, label: "II–IV" },
 };
 
-// ─── Top sellers component ─────────────────────────────────────────────────────
+// ─── Fitzpatrick helpers ───────────────────────────────────────────────────────
 
-function TopSellers({ region }: { region: string }) {
+const ROMAN_TO_NUM: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 };
+
+function parseFitzpatrick(fitz: string | null | undefined): number[] {
+  if (!fitz) return [];
+  const str = fitz.trim().toUpperCase();
+  const m = str.match(/^([IVX]+)\s*[-–]\s*([IVX]+)$/);
+  if (m) {
+    const start = ROMAN_TO_NUM[m[1]];
+    const end = ROMAN_TO_NUM[m[2]];
+    if (start && end) return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+  const n = ROMAN_TO_NUM[str];
+  if (n) return [n];
+  return [];
+}
+
+function FitzDots({ fitz }: { fitz: string | null | undefined }) {
+  const matched = parseFitzpatrick(fitz);
+  return (
+    <div className="flex gap-0.5 shrink-0">
+      {FITZ_TYPES.map((ft, i) => (
+        <div
+          key={ft.type}
+          className={`w-3 h-3 rounded-full border ${matched.includes(i + 1) ? "border-black/20" : "border-transparent opacity-15"}`}
+          style={{ backgroundColor: ft.color }}
+          title={`Fitzpatrick ${ft.type}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Pigments by region (infographic) ─────────────────────────────────────────
+
+function PigmentsByRegion({ region }: { region: string }) {
   const [rankings, setRankings] = useState<RegionRankingOut[]>([]);
   const [pigments, setPigments] = useState<PigmentWithSettings[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,33 +137,67 @@ function TopSellers({ region }: { region: string }) {
     }).finally(() => setLoading(false));
   }, [region]);
 
-  if (loading) return <div className="text-xs text-black/30 py-4">Загрузка...</div>;
+  if (loading) return <div className="text-xs text-black/30 py-6 text-center">Загрузка...</div>;
 
-  const getPigmentName = (id: number) => {
-    const p = pigments.find((x) => x.id === id);
-    return p ? `${p.name}${p.line ? ` (${p.line})` : ""}` : `#${id}`;
-  };
+  const getPigment = (id: number) => pigments.find((x) => x.id === id);
 
   const zones = rankings.filter((r) => r.rankings.length > 0);
   if (zones.length === 0) return (
-    <div className="text-xs text-black/30 py-4 text-center">Рейтинг не настроен для этого региона</div>
+    <div className="text-xs text-black/30 py-6 text-center">
+      Рейтинг не настроен для этого региона
+    </div>
   );
 
+  // Background color based on midpoint Fitzpatrick type
+  const getFitzBg = (fitz: string | null | undefined): string => {
+    const nums = parseFitzpatrick(fitz);
+    if (!nums.length) return "#F0F0F0";
+    const mid = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+    return FITZ_TYPES[mid - 1]?.color || "#F0F0F0";
+  };
+
+  const isLightBg = (fitz: string | null | undefined): boolean => {
+    const nums = parseFitzpatrick(fitz);
+    if (!nums.length) return true;
+    const mid = Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+    return mid <= 3;
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-4 mt-3">
+    <div className="grid grid-cols-2 gap-5">
       {zones.map((zone) => (
         <div key={zone.zone}>
-          <div className="text-xs font-medium tracking-wider uppercase text-black/40 mb-2">{zone.zone}</div>
-          <ol className="space-y-1">
-            {zone.rankings.slice(0, 8).map((r, i) => (
-              <li key={r.pigment_id} className="flex items-center gap-2 text-sm">
-                <span className={`text-xs font-black w-5 text-right ${i === 0 ? "text-luxe-black" : "text-black/30"}`}>
-                  {i + 1}
-                </span>
-                <span className="text-black/70">{getPigmentName(r.pigment_id)}</span>
-              </li>
-            ))}
-          </ol>
+          <div className="text-xs font-semibold tracking-widest uppercase text-black/40 mb-3">{zone.zone}</div>
+          <div className="space-y-2">
+            {zone.rankings.slice(0, 8).map((r, i) => {
+              const pig = getPigment(r.pigment_id);
+              if (!pig) return null;
+              const bg = getFitzBg(pig.fitzpatrick);
+              const light = isLightBg(pig.fitzpatrick);
+              return (
+                <div
+                  key={r.pigment_id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  style={{ backgroundColor: bg }}
+                >
+                  <span className={`text-xs font-black w-4 text-right shrink-0 ${light ? "text-black/35" : "text-white/50"}`}>
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium leading-tight truncate ${light ? "text-black/90" : "text-white"}`}>
+                      {pig.name}
+                    </div>
+                    {pig.line && (
+                      <div className={`text-xs leading-tight truncate ${light ? "text-black/40" : "text-white/55"}`}>
+                        {pig.line}
+                      </div>
+                    )}
+                  </div>
+                  <FitzDots fitz={pig.fitzpatrick} />
+                </div>
+              );
+            })}
+          </div>
         </div>
       ))}
     </div>
@@ -226,10 +299,10 @@ export default function ReferencePage() {
         </div>
       </section>
 
-      {/* ── 3. Top sellers by region ── */}
+      {/* ── 3. Pigments by region (infographic) ── */}
       <section>
         <div className="flex items-center gap-4 mb-4">
-          <h2 className="section-title">Топ продаж по регионам</h2>
+          <h2 className="section-title">Пигменты по регионам</h2>
           <select
             className="input text-sm py-1 px-3 w-auto"
             value={selectedRegion}
@@ -242,8 +315,43 @@ export default function ReferencePage() {
         </div>
 
         {selectedRegion && (
-          <div className="card">
-            <TopSellers region={selectedRegion} />
+          <div className="space-y-4">
+            {/* Fitzpatrick range for this region */}
+            {REGION_FITZ[selectedRegion] && (
+              <div className="card flex flex-wrap items-center gap-4 py-3">
+                <span className="text-xs tracking-widest uppercase text-black/40">Типичный тип кожи</span>
+                <div className="flex items-end gap-2.5">
+                  {FITZ_TYPES.map((f, i) => {
+                    const rf = REGION_FITZ[selectedRegion];
+                    const inRange = (i + 1) >= rf.min && (i + 1) <= rf.max;
+                    return (
+                      <div
+                        key={f.type}
+                        className={`flex flex-col items-center gap-1 transition-opacity ${inRange ? "opacity-100" : "opacity-20"}`}
+                      >
+                        <div
+                          className={`rounded-full border ${inRange ? "w-9 h-9 border-black/25" : "w-7 h-7 border-black/10"}`}
+                          style={{ backgroundColor: f.color }}
+                        />
+                        <span className={`text-xs font-bold ${inRange ? "text-black" : "text-black/30"}`}>{f.type}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <span className="text-base font-black text-luxe-black tracking-tight">
+                  {REGION_FITZ[selectedRegion].label}
+                </span>
+              </div>
+            )}
+
+            {/* Pigment infographic */}
+            <div className="card">
+              <p className="text-xs text-black/30 mb-4 tracking-wide">
+                Каждый пигмент окрашен в типичный тон кожи, которому он соответствует.
+                Точки справа — типы Фицпатрика, для которых он подходит.
+              </p>
+              <PigmentsByRegion region={selectedRegion} />
+            </div>
           </div>
         )}
       </section>

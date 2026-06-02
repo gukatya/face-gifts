@@ -28,6 +28,7 @@ export interface PigmentWithSettings {
   is_corrector: boolean;
   priority?: string | null;
   price_ru?: number | null;
+  price_eu?: number | null;
   is_hidden: boolean;
   hide_reason?: string | null;
   is_promoted: boolean;
@@ -49,6 +50,7 @@ export interface ConsumableWithSettings {
   category?: string | null;
   zone?: string | null;
   price_ru?: number | null;
+  price_eu?: number | null;
   has_mini: boolean;
   gift_priority?: string | null;
   is_hidden: boolean;
