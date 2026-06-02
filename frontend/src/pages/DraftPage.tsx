@@ -5,26 +5,26 @@ import type { Event, GiftSet, GiftItem, Nomination } from "../types";
 import type { PigmentWithSettings, ConsumableWithSettings } from "../types/catalog";
 
 const PLACE_LABELS: Record<string, string> = {
-  "1": "🥇 1 место",
-  "2": "🥈 2 место",
-  "3": "🥉 3 место",
-  "гран-при": "⭐ Гран-при",
-  "розыгрыш": "🎰 Розыгрыш",
-  "участник": "👥 Участник",
+  "1": "1 место",
+  "2": "2 место",
+  "3": "3 место",
+  "гран-при": "Гран-при",
+  "розыгрыш": "Розыгрыш",
+  "участник": "Участник",
 };
 
 const LEVEL_COLORS: Record<string, string> = {
-  Скромный: "bg-gray-100 text-gray-700",
-  Нормальный: "bg-blue-100 text-blue-700",
-  Хороший: "bg-amber-100 text-amber-700",
-  "Гран-при": "bg-purple-100 text-purple-700",
+  Скромный: "bg-black/8 text-black/50",
+  Нормальный: "bg-luxe-silver text-black/60",
+  Хороший: "bg-luxe-black text-white",
+  "Гран-при": "bg-luxe-black text-white",
 };
 
 const SKU_BADGE: Record<string, string> = {
-  pigment: "bg-pink-100 text-pink-700",
-  sample: "bg-violet-100 text-violet-700",
-  certificate: "bg-green-100 text-green-700",
-  consumable: "bg-teal-100 text-teal-700",
+  pigment: "bg-black/10 text-black/60",
+  sample: "bg-luxe-silver text-black/70",
+  certificate: "bg-black/5 text-black/50",
+  consumable: "bg-black/5 text-black/40",
 };
 
 const SKU_LABEL: Record<string, string> = {
@@ -314,66 +314,64 @@ export default function DraftPage() {
       ).slice(0, 15)
     : [];
 
-  if (loading) return <div className="text-center py-20 text-gray-400">Загрузка...</div>;
-  if (!event) return <div className="text-center py-20 text-gray-500">Мероприятие не найдено</div>;
+  if (loading) return <div className="text-center py-20 text-luxe-grey-mid text-sm tracking-widest uppercase">Загрузка...</div>;
+  if (!event) return <div className="text-center py-20 text-black/40">Мероприятие не найдено</div>;
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <Link to="/" className="text-sm text-gray-400 hover:text-gray-600 mb-1 inline-block">
+          <Link to="/" className="text-xs tracking-widest uppercase text-luxe-grey-mid hover:text-black/60 mb-2 inline-block transition-colors">
             ← Все мероприятия
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">{event.name}</h1>
-          <div className="flex gap-3 mt-1 text-xs text-gray-500">
-            <span>📅 {event.date}</span>
-            <span>🌍 {event.region}</span>
-            <span>🏭 {event.warehouse}</span>
-            <span className={`badge ${LEVEL_COLORS[event.level] ?? "bg-gray-100 text-gray-600"}`}>
+          <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">{event.name}</h1>
+          <div className="flex flex-wrap gap-3 mt-2 text-xs text-black/40 font-light">
+            <span>{event.date}</span>
+            <span>{event.region}</span>
+            <span>{event.warehouse}</span>
+            <span className={`badge ${LEVEL_COLORS[event.level] ?? "bg-black/10 text-black/50"}`}>
               {event.level}
             </span>
             <span className={`badge ${
-              event.status === "draft" ? "bg-yellow-100 text-yellow-800"
-              : event.status === "approved" ? "bg-green-100 text-green-800"
-              : "bg-blue-100 text-blue-800"
+              event.status === "draft" ? "bg-black/10 text-black/50"
+              : event.status === "approved" ? "bg-luxe-black text-white"
+              : "bg-luxe-silver text-black/60"
             }`}>
               {event.status === "draft" ? "Черновик" : event.status === "approved" ? "Утверждён" : "На проверке"}
             </span>
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           {previousSets && (
             <button
-              className="btn-secondary text-sm border-amber-300 text-amber-700 hover:bg-amber-50"
+              className="btn-secondary text-sm"
               onClick={handleUndo}
               title="Вернуться к предыдущей версии наборов"
             >
-              ↩ Отменить
+              Отменить
             </button>
           )}
           <button
             className="btn-secondary text-sm"
             onClick={() => navigate(`/events/${eventId}/edit`)}
-            title="Редактировать параметры мероприятия"
           >
-            ✏️ Редактировать
+            Редактировать
           </button>
           <button
             className="btn-secondary text-sm"
             onClick={handleGenerate}
             disabled={generating}
-            title="Подобрать другой вариант подарков"
           >
-            {generating ? "⏳ Подбираем..." : "🔄 Другой вариант"}
+            {generating ? "Подбираем..." : "Другой вариант"}
           </button>
           <button
             className="btn-primary text-sm"
             onClick={handleExport}
             disabled={exporting || sets.length === 0}
           >
-            {exporting ? "⏳ Экспорт..." : "📥 Экспорт Excel"}
+            {exporting ? "Экспорт..." : "Экспорт Excel"}
           </button>
         </div>
       </div>
@@ -382,10 +380,10 @@ export default function DraftPage() {
       {sets.length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="card text-center">
-            <div className="text-2xl font-bold text-brand-500">{totalGiftCount}</div>
-            <div className="text-xs text-gray-500 mt-0.5">подарков итого</div>
+            <div className="text-2xl font-black text-luxe-black">{totalGiftCount}</div>
+            <div className="text-xs text-black/40 mt-0.5">подарков итого</div>
             {sets.length !== totalGiftCount && (
-              <div className="text-xs text-gray-400">{sets.length} видов наборов</div>
+              <div className="text-xs text-black/30">{sets.length} видов наборов</div>
             )}
           </div>
           {(() => {
@@ -397,7 +395,7 @@ export default function DraftPage() {
             const changed = targetBudget !== null && Math.abs(diff) >= 1000;
             return (
               <div className="card col-span-1 flex flex-col gap-2">
-                <div className="text-xs text-gray-500 font-medium">Бюджет на подарки</div>
+                <div className="text-xs text-black/40 font-medium">Бюджет на подарки</div>
                 <input
                   type="range"
                   min={sliderMin}
@@ -405,15 +403,15 @@ export default function DraftPage() {
                   step={1000}
                   value={sliderVal}
                   onChange={(e) => setTargetBudget(Number(e.target.value))}
-                  className="w-full accent-brand-500"
+                  className="w-full accent-black"
                 />
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-xl font-bold tabular-nums text-gray-800">
+                    <span className="text-xl font-black tabular-nums text-luxe-black">
                       {sliderVal.toLocaleString("ru-RU")} ₽
                     </span>
                     {changed && (
-                      <span className={`ml-2 text-xs font-medium tabular-nums ${diff > 0 ? "text-green-600" : "text-amber-600"}`}>
+                      <span className={`ml-2 text-xs font-medium tabular-nums ${diff > 0 ? "text-black/50" : "text-black/40"}`}>
                         {diff > 0 ? `+${diff.toLocaleString("ru-RU")}` : diff.toLocaleString("ru-RU")} ₽
                       </span>
                     )}
@@ -424,7 +422,7 @@ export default function DraftPage() {
                       onClick={handleApplyBudget}
                       disabled={applyingBudget}
                     >
-                      {applyingBudget ? "⏳" : "Пересобрать"}
+                      {applyingBudget ? "..." : "Пересобрать"}
                     </button>
                   )}
                 </div>
@@ -432,18 +430,18 @@ export default function DraftPage() {
             );
           })()}
           <div className="card text-center">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-black text-luxe-black">
               {totalCost.toLocaleString("ru-RU")} ₽
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">итого по мероприятию</div>
+            <div className="text-xs text-black/40 mt-0.5">итого по мероприятию</div>
             {event.total_budget && event.total_budget > 0 && (
               <div className={`text-xs mt-1 font-medium ${
                 totalCost > event.total_budget * 1.05
-                  ? "text-amber-600"
-                  : "text-gray-400"
+                  ? "text-black/60"
+                  : "text-black/30"
               }`}>
                 запланировано {event.total_budget.toLocaleString("ru-RU")} ₽
-                {totalCost > event.total_budget * 1.05 && " ⚠️"}
+                {totalCost > event.total_budget * 1.05 && " !"}
               </div>
             )}
           </div>
@@ -453,7 +451,7 @@ export default function DraftPage() {
       {/* Sets */}
       {sets.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-gray-500 mb-4">Черновик ещё не сформирован</p>
+          <p className="text-black/40 mb-4">Черновик ещё не сформирован</p>
           <button className="btn-primary" onClick={handleGenerate}>
             Сформировать набор
           </button>
@@ -468,27 +466,27 @@ export default function DraftPage() {
               : gs.total_price;
 
             return (
-              <div key={gs.id} className={`card overflow-hidden p-0 ${isEditing ? "ring-2 ring-brand-400" : ""}`}>
+              <div key={gs.id} className={`card overflow-hidden p-0 ${isEditing ? "ring-2 ring-black/20" : ""}`}>
                 {/* Row header */}
-                <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+                <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 transition-colors">
                   <button
                     className="flex items-center gap-3 flex-1 text-left"
                     onClick={() => toggleExpand(gs.id)}
                   >
-                    <span className="font-semibold text-gray-800">{gs.nomination_name}</span>
-                    <span className="text-sm text-gray-500">{PLACE_LABELS[gs.place] ?? gs.place}</span>
-                    <span className={`badge ${LEVEL_COLORS[gs.level] ?? "bg-gray-100 text-gray-600"}`}>
+                    <span className="font-semibold text-luxe-black">{gs.nomination_name}</span>
+                    <span className="text-sm text-black/40">{PLACE_LABELS[gs.place] ?? gs.place}</span>
+                    <span className={`badge ${LEVEL_COLORS[gs.level] ?? "bg-black/10 text-black/50"}`}>
                       {gs.level}
                     </span>
                   </button>
 
                   <div className="flex items-center gap-3">
                     {getSetCount(gs) > 1 && (
-                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs text-black/40 bg-black/10 px-2 py-0.5 rounded-full">
                         × {getSetCount(gs)} чел.
                       </span>
                     )}
-                    <span className="text-sm font-semibold text-gray-700">
+                    <span className="text-sm font-semibold text-black/60">
                       {displayTotal.toLocaleString("ru-RU")} ₽
                     </span>
 
@@ -511,16 +509,18 @@ export default function DraftPage() {
                       </div>
                     ) : (
                       <button
-                        className="text-gray-400 hover:text-brand-500 transition-colors p-1"
+                        className="text-black/25 hover:text-black/70 transition-colors p-1"
                         title="Редактировать набор"
                         onClick={(e) => { e.stopPropagation(); startEdit(gs); }}
                       >
-                        ✏️
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                        </svg>
                       </button>
                     )}
 
                     <button
-                      className="text-gray-400 text-sm w-4"
+                      className="text-black/30 text-sm w-4"
                       onClick={() => toggleExpand(gs.id)}
                     >
                       {expanded.has(gs.id) ? "▲" : "▼"}
@@ -530,10 +530,10 @@ export default function DraftPage() {
 
                 {/* Expanded content */}
                 {expanded.has(gs.id) && (
-                  <div className="border-t border-gray-100 px-5 py-3">
+                  <div className="border-t border-black/5 px-5 py-3">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="text-xs text-gray-400 border-b border-gray-100">
+                        <tr className="text-xs text-black/30 border-b border-black/5">
                           <th className="text-left pb-2 font-medium w-8">#</th>
                           <th className="text-left pb-2 font-medium">Наименование</th>
                           <th className="text-left pb-2 font-medium">Тип</th>
@@ -544,21 +544,21 @@ export default function DraftPage() {
                       </thead>
                       <tbody>
                         {displayItems.map((item, idx) => (
-                          <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50">
-                            <td className="py-1.5 text-gray-400 text-xs">{idx + 1}</td>
-                            <td className="py-1.5 font-medium text-gray-800">
+                          <tr key={idx} className="border-b border-black/5 hover:bg-black/5">
+                            <td className="py-1.5 text-black/30 text-xs">{idx + 1}</td>
+                            <td className="py-1.5 font-medium text-luxe-black">
                               {item.name}
                               {item.line && (
-                                <span className="ml-1.5 text-xs text-gray-400 font-normal">({item.line})</span>
+                                <span className="ml-1.5 text-xs text-black/30 font-normal">({item.line})</span>
                               )}
                             </td>
                             <td className="py-1.5">
-                              <span className={`badge text-xs ${SKU_BADGE[item.sku_type] ?? "bg-gray-100 text-gray-600"}`}>
+                              <span className={`badge text-xs ${SKU_BADGE[item.sku_type] ?? "bg-black/10 text-black/50"}`}>
                                 {SKU_LABEL[item.sku_type] ?? item.sku_type}
                               </span>
                             </td>
-                            <td className="py-1.5 text-center text-gray-600">{item.qty}</td>
-                            <td className="py-1.5 text-right text-gray-700">
+                            <td className="py-1.5 text-center text-black/50">{item.qty}</td>
+                            <td className="py-1.5 text-right text-black/60">
                               {item.price.toLocaleString("ru-RU")} ₽
                             </td>
                             {isEditing && (
@@ -577,10 +577,10 @@ export default function DraftPage() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={isEditing ? 5 : 4} className="pt-2 text-right text-sm font-semibold text-gray-700">
+                          <td colSpan={isEditing ? 5 : 4} className="pt-2 text-right text-sm font-semibold text-black/50">
                             Итого набор:
                           </td>
-                          <td className="pt-2 text-right font-bold text-brand-500" colSpan={isEditing ? 2 : 1}>
+                          <td className="pt-2 text-right font-black text-luxe-black" colSpan={isEditing ? 2 : 1}>
                             {displayTotal.toLocaleString("ru-RU")} ₽
                           </td>
                         </tr>
@@ -594,14 +594,14 @@ export default function DraftPage() {
                           ref={addInputRef}
                           type="text"
                           className="input text-sm w-full"
-                          placeholder="🔍 Добавить позицию — начните вводить название..."
+                          placeholder="Добавить позицию — начните вводить название..."
                           value={addQuery}
                           onChange={(e) => { setAddQuery(e.target.value); setShowDropdown(true); }}
                           onFocus={() => { if (addQuery.trim()) setShowDropdown(true); }}
                           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                         />
                         {showDropdown && filteredCatalog.length > 0 && (
-                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                             {filteredCatalog.map((entry) => {
                               const already = editItems.some(
                                 (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
@@ -609,18 +609,18 @@ export default function DraftPage() {
                               return (
                                 <button
                                   key={`${entry.sku_type}-${entry.sku_id}`}
-                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-gray-50 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
+                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
                                   onMouseDown={(e) => e.preventDefault()}
                                   onClick={() => !already && addItem(entry)}
                                 >
                                   <span className="flex items-center gap-2">
-                                    <span className={`badge text-xs ${SKU_BADGE[entry.sku_type] ?? "bg-gray-100 text-gray-600"}`}>
+                                    <span className={`badge text-xs ${SKU_BADGE[entry.sku_type] ?? "bg-black/10 text-black/50"}`}>
                                       {SKU_LABEL[entry.sku_type]}
                                     </span>
-                                    <span className="font-medium text-gray-800">{entry.name}</span>
-                                    {entry.line && <span className="text-gray-400 text-xs">({entry.line})</span>}
+                                    <span className="font-medium text-luxe-black">{entry.name}</span>
+                                    {entry.line && <span className="text-black/30 text-xs">({entry.line})</span>}
                                   </span>
-                                  <span className="text-gray-500 shrink-0 ml-3">
+                                  <span className="text-black/40 shrink-0 ml-3">
                                     {entry.price.toLocaleString("ru-RU")} ₽
                                   </span>
                                 </button>
@@ -629,7 +629,7 @@ export default function DraftPage() {
                           </div>
                         )}
                         {showDropdown && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
-                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3 text-sm text-gray-400">
+                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
                             Ничего не найдено
                           </div>
                         )}

@@ -232,11 +232,11 @@ function RegionsTab({ regions, allPigments }: RegionsTabProps) {
                       onBlur={() => handleBlur(zone, idx)}
                     />
                     {showDropdowns[zone][idx] && filteredList.length > 0 && (
-                      <div className="absolute z-20 top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto mt-0.5">
+                      <div className="absolute z-20 top-full left-0 right-0 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-40 overflow-y-auto mt-0.5">
                         {filteredList.slice(0, 20).map((pig) => (
                           <button
                             key={pig.id}
-                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-brand-50 flex flex-col"
+                            className="w-full text-left px-3 py-1.5 text-sm hover:bg-luxe-grey flex flex-col"
                             onMouseDown={() => handleSelectPigment(zone, idx, pig)}
                           >
                             <span className="font-medium">{pig.name}</span>
@@ -270,8 +270,8 @@ function RegionsTab({ regions, allPigments }: RegionsTabProps) {
               onClick={() => setSelectedRegion(r)}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                 selectedRegion === r
-                  ? "bg-brand-500 text-white font-medium"
-                  : "hover:bg-gray-100 text-gray-700"
+                  ? "bg-luxe-black text-white font-medium"
+                  : "hover:bg-luxe-grey text-black/60"
               }`}
             >
               {r}
@@ -391,8 +391,8 @@ function PigmentsTab({ regions }: { regions: string[] }) {
               onClick={() => setZoneFilter(z)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 zoneFilter === z
-                  ? "bg-brand-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  ? "bg-luxe-black text-white"
+                  : "bg-white/70 border border-black/15 text-black/60 hover:bg-white"
               }`}
             >
               {z}
@@ -402,8 +402,8 @@ function PigmentsTab({ regions }: { regions: string[] }) {
       </div>
 
       {selectedRegion === "Глобально" && (
-        <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
-          <span className="text-base leading-none mt-0.5">⚠️</span>
+        <div className="mb-4 flex items-start gap-2 bg-black/5 border border-black/10 rounded-xl px-4 py-3 text-sm text-black/60">
+          <span className="text-base leading-none mt-0.5 font-bold">!</span>
           <span>
             Вы редактируете <strong>глобальные</strong> настройки — они применяются ко всем регионам.
             Чтобы настроить «Продвигаем» только для одного региона — выберите его в списке выше.
@@ -416,7 +416,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-black/3 border-b border-black/8">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Название</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Fitzpatrick</th>
@@ -443,7 +443,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
                       type="checkbox"
                       checked={pig.is_promoted}
                       onChange={(e) => handleChange(pig, { is_promoted: e.target.checked })}
-                      className="w-4 h-4 accent-brand-500 cursor-pointer"
+                      className="w-4 h-4 accent-black cursor-pointer"
                     />
                   </td>
                   <td className="px-4 py-2.5 text-center">
@@ -451,7 +451,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
                       type="checkbox"
                       checked={pig.is_hidden}
                       onChange={(e) => handleChange(pig, { is_hidden: e.target.checked })}
-                      className="w-4 h-4 accent-brand-500 cursor-pointer"
+                      className="w-4 h-4 accent-black cursor-pointer"
                     />
                   </td>
                   <td className="px-4 py-2.5">
@@ -575,8 +575,8 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
               onClick={() => setCategoryFilter(cat)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 categoryFilter === cat
-                  ? "bg-brand-500 text-white"
-                  : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                  ? "bg-luxe-black text-white"
+                  : "bg-white/70 border border-black/15 text-black/60 hover:bg-white"
               }`}
             >
               {cat}
@@ -590,7 +590,7 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-black/3 border-b border-black/8">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Название</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Зона</th>
@@ -631,7 +631,7 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
                       type="checkbox"
                       checked={c.is_hidden}
                       onChange={(e) => handleChange(c, { is_hidden: e.target.checked })}
-                      className="w-4 h-4 accent-brand-500 cursor-pointer"
+                      className="w-4 h-4 accent-black cursor-pointer"
                     />
                   </td>
                   <td className="px-4 py-2.5">
@@ -709,18 +709,21 @@ export default function KnowledgePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">База знаний</h1>
+      <div className="mb-8">
+        <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">Настройки</p>
+        <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">База знаний</h1>
+      </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-black/10">
         {TABS.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`px-5 py-2.5 text-sm font-medium tracking-wide transition-colors border-b-2 -mb-px ${
               activeTab === tab
-                ? "border-brand-500 text-brand-500"
-                : "border-transparent text-gray-500 hover:text-gray-700"
+                ? "border-luxe-black text-luxe-black"
+                : "border-transparent text-black/40 hover:text-black/70"
             }`}
           >
             {tab}

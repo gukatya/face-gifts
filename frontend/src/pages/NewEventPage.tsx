@@ -97,11 +97,11 @@ function CountryAutocomplete({
         autoComplete="off"
       />
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-auto">
+        <ul className="absolute z-10 w-full bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg mt-1 max-h-48 overflow-auto">
           {suggestions.map((c) => (
             <li
               key={c}
-              className="px-3 py-2 text-sm cursor-pointer hover:bg-brand-50 hover:text-brand-500"
+              className="px-3 py-2 text-sm cursor-pointer hover:bg-luxe-grey hover:text-luxe-black"
               onMouseDown={() => select(c)}
             >
               {c}
@@ -253,9 +253,9 @@ export default function NewEventPage() {
   };
 
   const levelBadgeColor = (l: string) => {
-    if (l === "Скромный") return "bg-gray-100 text-gray-600 border border-gray-300";
-    if (l === "Нормальный") return "bg-blue-100 text-blue-700 border border-blue-300";
-    return "bg-amber-100 text-amber-700 border border-amber-400";
+    if (l === "Скромный") return "bg-black/8 text-black/50 border border-black/10";
+    if (l === "Нормальный") return "bg-luxe-silver text-black/70 border border-luxe-silver";
+    return "bg-luxe-black text-white border border-luxe-black";
   };
 
   const formatRub = (n: number) => Math.round(n).toLocaleString("ru-RU");
@@ -282,17 +282,17 @@ export default function NewEventPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {isEditMode ? "Редактирование мероприятия" : "Новое мероприятие"}
+      <div className="mb-8">
+        <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">Конструктор наборов</p>
+        <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">
+          {isEditMode ? "Редактирование" : "Новое мероприятие"}
         </h1>
-        <p className="text-sm text-gray-500 mt-0.5">Заполните параметры для формирования набора</p>
       </div>
 
       <StepIndicator current={step} steps={["Параметры", "Призовая структура", "Уровень подарка"]} />
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="mb-4 p-4 bg-black/5 border border-black/10 rounded-xl text-sm text-black/70">
           {error}
         </div>
       )}
@@ -341,7 +341,7 @@ export default function NewEventPage() {
               onRegionResolved={(r) => setResolvedRegion(r)}
             />
             {resolvedRegion && (
-              <p className="text-xs text-brand-500 mt-1.5 font-medium">
+              <p className="text-xs text-luxe-black mt-1.5 font-medium">
                 ✓ Регион определён: <span className="font-semibold">{resolvedRegion}</span>
               </p>
             )}
@@ -379,7 +379,7 @@ export default function NewEventPage() {
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 accent-brand-500"
+                  className="w-4 h-4 accent-black"
                   checked={form.has_trade_booth}
                   onChange={(e) => update({ has_trade_booth: e.target.checked })}
                 />
@@ -388,7 +388,7 @@ export default function NewEventPage() {
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 accent-brand-500"
+                  className="w-4 h-4 accent-black"
                   checked={form.has_speaker_nonstop}
                   onChange={(e) => update({ has_speaker_nonstop: e.target.checked })}
                 />
@@ -397,7 +397,7 @@ export default function NewEventPage() {
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 accent-brand-500"
+                  className="w-4 h-4 accent-black"
                   checked={form.has_speaker_stage}
                   onChange={(e) => update({ has_speaker_stage: e.target.checked })}
                 />
@@ -422,12 +422,12 @@ export default function NewEventPage() {
       {step === 2 && (
         <div className="card space-y-4">
           {/* Гран-при */}
-          <div className="flex items-center justify-between py-2 border-b border-gray-100">
-            <span className="text-sm font-medium text-gray-700">⭐ Гран-при</span>
+          <div className="flex items-center justify-between py-2 border-b border-black/6">
+            <span className="text-sm font-medium text-gray-700">Гран-при</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 text-base font-bold"
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
                 onClick={() => update({ grand_prix_count: Math.max(0, form.grand_prix_count - 1) })}
                 disabled={form.grand_prix_count === 0}
               >
@@ -436,7 +436,7 @@ export default function NewEventPage() {
               <span className="text-sm font-medium w-6 text-center">{form.grand_prix_count}</span>
               <button
                 type="button"
-                className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 text-base font-bold"
+                className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
                 onClick={() => update({ grand_prix_count: Math.min(3, form.grand_prix_count + 1) })}
                 disabled={form.grand_prix_count >= 3}
               >
@@ -446,13 +446,13 @@ export default function NewEventPage() {
           </div>
 
           {/* Розыгрыш */}
-          <div className="py-2 border-b border-gray-100">
+          <div className="py-2 border-b border-black/6">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">🎲 Розыгрыш</span>
+              <span className="text-sm font-medium text-gray-700">Розыгрыш</span>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 accent-brand-500"
+                  className="w-4 h-4 accent-black"
                   checked={form.giveaways_count > 0}
                   onChange={(e) => update({ giveaways_count: e.target.checked ? 1 : 0 })}
                 />
@@ -479,8 +479,8 @@ export default function NewEventPage() {
                       type="button"
                       className={`px-4 py-1.5 text-sm rounded-full border transition-all ${
                         form.giveaway_mode === mode
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                          ? "border-luxe-black bg-luxe-black text-white"
+                          : "border-luxe-silver bg-white/70 text-black/60 hover:border-black/40"
                       }`}
                       onClick={() => update({ giveaway_mode: mode })}
                     >
@@ -488,7 +488,7 @@ export default function NewEventPage() {
                     </button>
                   ))}
                   {form.giveaway_mode === "разные" && (
-                    <span className="text-xs text-gray-400 self-center">разные наборы для каждого</span>
+                    <span className="text-xs text-black/30 self-center">разные наборы для каждого</span>
                   )}
                 </div>
               </div>
@@ -497,8 +497,8 @@ export default function NewEventPage() {
 
           {/* Участники */}
           {form.recipients.includes("участники") && (
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span className="text-sm font-medium text-gray-700">👥 Участники</span>
+            <div className="flex items-center justify-between py-2 border-b border-black/6">
+              <span className="text-sm font-medium text-gray-700">Участники</span>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-600">Количество:</label>
                 <input
@@ -525,7 +525,7 @@ export default function NewEventPage() {
 
             <div className="space-y-3">
               {form.nominations.map((nom, i) => (
-                <div key={i} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div key={i} className="border border-black/8 rounded-xl p-3 bg-white/40">
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
                       <select
@@ -597,7 +597,7 @@ export default function NewEventPage() {
           {!onlyParticipants && (
             <div className="p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">🏆 Подарки победителям</h3>
+                <h3 className="font-semibold text-gray-800">Подарки победителям</h3>
                 <span className={`text-sm font-semibold px-3 py-1 rounded-full ${levelBadgeColor(currentLevel)}`}>
                   {currentLevel}
                 </span>
@@ -611,7 +611,7 @@ export default function NewEventPage() {
                 step={500}
                 value={sliderValue}
                 onChange={(e) => setBudgetSlider(Number(e.target.value))}
-                className="w-full accent-brand-500"
+                className="w-full accent-black"
               />
 
               {/* Amount + gift count pill */}
@@ -665,8 +665,8 @@ export default function NewEventPage() {
 
           {/* ── SECTION 2: Participants ──────────────────────────────── */}
           {hasParticipants && (
-            <div className={`p-5 space-y-4 ${!onlyParticipants ? "border-t border-gray-100 bg-gray-50/60" : ""}`}>
-              <h3 className="font-semibold text-gray-800">👥 Подарки участникам</h3>
+            <div className={`p-5 space-y-4 ${!onlyParticipants ? "border-t border-black/8 bg-black/3" : ""}`}>
+              <h3 className="font-semibold text-gray-800">Подарки участникам</h3>
 
               {/* Count + gift type in one row */}
               <div className="flex flex-wrap items-center gap-3">
@@ -688,8 +688,8 @@ export default function NewEventPage() {
                       type="button"
                       className={`px-3 py-1 text-sm rounded-full border transition-all ${
                         form.participants_use_certificate === isCert
-                          ? "border-brand-500 bg-brand-500 text-white"
-                          : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                          ? "border-luxe-black bg-luxe-black text-white"
+                          : "border-luxe-silver bg-white/70 text-black/60 hover:border-black/40"
                       }`}
                       onClick={() => update({ participants_use_certificate: isCert })}
                     >
@@ -708,7 +708,7 @@ export default function NewEventPage() {
                   step={100}
                   value={participantsBudget}
                   onChange={(e) => update({ participants_budget: Number(e.target.value) })}
-                  className="w-full accent-brand-500"
+                  className="w-full accent-black"
                 />
                 <div className="flex items-baseline justify-between">
                   <div className="text-2xl font-bold text-gray-900 tabular-nums">
@@ -727,8 +727,8 @@ export default function NewEventPage() {
 
               {/* Warning: physical gift minimum cost */}
               {!form.participants_use_certificate && participantsBudget < 1500 && form.participants_count > 0 && (
-                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
-                  ⚠️ Минимальная стоимость физического подарка — около&nbsp;1&nbsp;400–1&nbsp;500&nbsp;₽
+                <div className="text-xs text-black/60 bg-black/5 border border-black/10 rounded-xl px-3 py-2 leading-relaxed">
+                  Минимальная стоимость физического подарка — около&nbsp;1&nbsp;400–1&nbsp;500&nbsp;₽
                   (1 пигмент + обязательные расходники). При бюджете ниже этой суммы набор всё равно
                   будет собран, но его фактическая стоимость превысит указанный лимит.
                   Рассмотри вариант <button
@@ -742,7 +742,7 @@ export default function NewEventPage() {
           )}
 
           {/* ── SECTION 3: Total ────────────────────────────────────── */}
-          <div className="border-t border-gray-200 bg-gray-50 px-5 py-4">
+          <div className="border-t border-black/8 bg-black/3 px-5 py-4">
             <div className="space-y-1.5 text-sm">
               {!onlyParticipants && winnerGiftCount > 0 && (
                 <div className="flex justify-between text-gray-600">
@@ -768,8 +768,8 @@ export default function NewEventPage() {
           {/* ── Footer ──────────────────────────────────────────────── */}
           <div className="px-5 pb-5 pt-3 space-y-3">
             {resolvedRegion && (
-              <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                🌍 {form.country} → <strong>{resolvedRegion}</strong>
+              <div className="text-xs text-black/50 bg-black/4 rounded-xl px-3 py-2 border border-black/8">
+                {form.country} → <strong>{resolvedRegion}</strong>
                 {" · "}подбор пигментов под местный цветотип
               </div>
             )}

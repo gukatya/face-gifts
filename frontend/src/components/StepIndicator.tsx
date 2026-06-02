@@ -5,7 +5,7 @@ interface Props {
 
 export default function StepIndicator({ current, steps }: Props) {
   return (
-    <div className="flex items-center gap-0 mb-6">
+    <div className="flex items-center gap-0 mb-8">
       {steps.map((label, i) => {
         const num = i + 1;
         const done = current > num;
@@ -14,22 +14,26 @@ export default function StepIndicator({ current, steps }: Props) {
           <div key={num} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors ${
                   done
-                    ? "bg-green-500 border-green-500 text-white"
+                    ? "bg-luxe-black border-luxe-black text-white"
                     : active
-                    ? "bg-brand-500 border-brand-500 text-white"
-                    : "bg-white border-gray-300 text-gray-400"
+                    ? "bg-luxe-black border-luxe-black text-white"
+                    : "bg-transparent border-luxe-silver text-luxe-grey-mid"
                 }`}
               >
-                {done ? "✓" : num}
+                {done ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : num}
               </div>
-              <span className={`text-xs mt-1 font-medium ${active ? "text-brand-500" : "text-gray-400"}`}>
+              <span className={`text-xs mt-1.5 tracking-wide ${active ? "text-luxe-black font-medium" : "text-luxe-grey-mid"}`}>
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-2 mb-4 ${current > num ? "bg-green-400" : "bg-gray-200"}`} />
+              <div className={`flex-1 h-px mx-2 mb-5 ${current > num ? "bg-luxe-black" : "bg-luxe-silver"}`} />
             )}
           </div>
         );
