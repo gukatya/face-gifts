@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 import io
 
 from ..database import get_db
 from ..models import Event, GiftSet
 from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse
+
+
+class ShipPayload(BaseModel):
+    shipped_date: Optional[str] = None  # ISO date string, defaults to today if None
 from ..services.calculator import calc_all_levels
 from ..services.draft import generate_draft
 from ..services.export_excel import export_event_to_excel
@@ -125,6 +131,33 @@ def update_gift_set(event_id: int, set_id: int, payload: GiftSetItemsUpdate, db:
     db.commit()
     db.refresh(gs)
     return gs
+
+
+@router.patch("/{event_id}/ship", response_model=EventOut)
+def ship_event(event_id: int, payload: ShipPayload, db: Session = Depends(get_db)):
+    """Mark event gifts as shipped. Sets shipped_date to today if not provided."""
+    from datetime import date
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.gifts_sent = True
+    event.shipped_date = payload.shipped_date or date.today().isoformat()
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.patch("/{event_id}/unship", response_model=EventOut)
+def unship_event(event_id: int, db: Session = Depends(get_db)):
+    """Unmark event as shipped."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.gifts_sent = False
+    event.shipped_date = None
+    db.commit()
+    db.refresh(event)
+    return event
 
 
 @router.get("/{event_id}/export")

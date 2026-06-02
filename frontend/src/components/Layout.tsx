@@ -23,6 +23,16 @@ export default function Layout() {
               Мероприятия
             </Link>
             <Link
+              to="/analytics"
+              className={`tracking-wide transition-colors ${
+                loc.pathname.startsWith("/analytics")
+                  ? "text-white font-medium"
+                  : "text-white/50 hover:text-white/80"
+              }`}
+            >
+              Аналитика
+            </Link>
+            <Link
               to="/knowledge"
               className={`tracking-wide transition-colors ${
                 loc.pathname.startsWith("/knowledge")

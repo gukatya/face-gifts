@@ -30,8 +30,49 @@ export interface EventCreate {
 export interface Event extends EventCreate {
   id: number;
   status: "draft" | "pending" | "approved";
+  gifts_sent: boolean;
+  shipped_date: string | null;
   created_at: string;
   nominations_data: Nomination[] | null;
+}
+
+export interface MonthlyBudget {
+  id: number;
+  month: string;   // "2025-06"
+  planned: number; // ₽
+}
+
+export interface DashboardMonthStat {
+  month: string;
+  planned: number;
+  actual_cost: number;
+  events_count: number;
+  shipped_count: number;
+  top_items: { name: string; sku_type: string; qty: number }[];
+}
+
+export interface DashboardGeo {
+  region: string;
+  events_count: number;
+  total_cost: number;
+  countries: string[];
+}
+
+export interface ShippingDeadline {
+  id: number;
+  name: string;
+  date: string;
+  ship_by: string;
+  days_until_ship: number;
+  region: string;
+  country: string;
+  level: string;
+}
+
+export interface DashboardStats {
+  monthly_stats: DashboardMonthStat[];
+  geography: DashboardGeo[];
+  upcoming_deadlines: ShippingDeadline[];
 }
 
 export interface GiftItem {

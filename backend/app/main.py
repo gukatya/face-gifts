@@ -7,11 +7,25 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from sqlalchemy import text
 from .database import Base, engine, get_db
-from .routers import events, knowledge, catalog
+from .routers import events, knowledge, catalog, budgets, dashboard
 from .services.seed import seed_all
 
 Base.metadata.create_all(bind=engine)
+
+# ── SQLite column migrations (idempotent) ─────────────────────────────────────
+_MIGRATIONS = [
+    "ALTER TABLE events ADD COLUMN gifts_sent BOOLEAN DEFAULT 0",
+    "ALTER TABLE events ADD COLUMN shipped_date VARCHAR(20)",
+]
+with engine.connect() as _conn:
+    for _stmt in _MIGRATIONS:
+        try:
+            _conn.execute(text(_stmt))
+            _conn.commit()
+        except Exception:
+            pass  # column already exists
 
 app = FastAPI(title="FACE Gifts API", version="1.0.0")
 
@@ -32,6 +46,8 @@ app.add_middleware(
 app.include_router(events.router, prefix="/api")
 app.include_router(knowledge.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
+app.include_router(budgets.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
 
 
 @app.on_event("startup")

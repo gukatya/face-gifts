@@ -79,6 +79,8 @@ class Event(Base):
     participants_budget = Column(Integer, default=500)   # per-participant gift price (₽)
     participants_use_certificate = Column(Boolean, default=False)
     status = Column(String(30), default="draft")  # draft / pending / approved
+    gifts_sent = Column(Boolean, default=False)
+    shipped_date = Column(String(20), nullable=True)  # ISO date of actual shipment
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sets = relationship("GiftSet", back_populates="event", cascade="all, delete-orphan")
@@ -96,6 +98,14 @@ class GiftSet(Base):
     total_price = Column(Float, default=0)
 
     event = relationship("Event", back_populates="sets")
+
+
+class MonthlyBudget(Base):
+    """Planned marketing gift budget per calendar month."""
+    __tablename__ = "monthly_budgets"
+    id = Column(Integer, primary_key=True, index=True)
+    month = Column(String(7), unique=True, nullable=False)  # "2025-06"
+    planned = Column(Integer, default=0)  # ₽
 
 
 class RegionRanking(Base):

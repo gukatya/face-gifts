@@ -51,11 +51,24 @@ class EventOut(BaseModel):
     participants_count: int
     nominations_data: Optional[list] = None
     status: str
+    gifts_sent: bool = False
+    shipped_date: Optional[str] = None
     created_at: datetime
     total_budget: Optional[int] = None
     participants_budget: int = 500
     participants_use_certificate: bool = False
 
+    model_config = {"from_attributes": True}
+
+
+class MonthlyBudgetIn(BaseModel):
+    planned: int
+
+
+class MonthlyBudgetOut(BaseModel):
+    id: int
+    month: str
+    planned: int
     model_config = {"from_attributes": True}
 
 

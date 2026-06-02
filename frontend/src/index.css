@@ -122,4 +122,9 @@
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium tracking-wide;
   }
+
+  /* Section heading */
+  .section-title {
+    @apply text-xs font-semibold tracking-widest uppercase text-black/50;
+  }
 }

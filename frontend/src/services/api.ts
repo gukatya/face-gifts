@@ -1,4 +1,4 @@
-import type { Event, EventCreate, GiftSet, CalcLevels, Nomination } from "../types";
+import type { Event, EventCreate, GiftSet, CalcLevels, Nomination, MonthlyBudget, DashboardStats } from "../types";
 import type {
   RegionRankingOut,
   RegionRankingItem,
@@ -46,6 +46,13 @@ export const api = {
         body: JSON.stringify({ items }),
       }),
     exportUrl: (id: number) => `/api/events/${id}/export`,
+    ship: (id: number, shippedDate?: string) =>
+      request<Event>(`/events/${id}/ship`, {
+        method: "PATCH",
+        body: JSON.stringify({ shipped_date: shippedDate ?? null }),
+      }),
+    unship: (id: number) =>
+      request<Event>(`/events/${id}/unship`, { method: "PATCH" }),
   },
   calculator: {
     calc: (data: { nominations: Nomination[]; grand_prix_count: number; giveaways_count: number; participants_count: number }) =>
@@ -92,5 +99,16 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+  },
+  budgets: {
+    list: () => request<MonthlyBudget[]>("/budgets/"),
+    set: (month: string, planned: number) =>
+      request<MonthlyBudget>(`/budgets/${month}`, {
+        method: "PUT",
+        body: JSON.stringify({ planned }),
+      }),
+  },
+  dashboard: {
+    stats: () => request<DashboardStats>("/dashboard/stats"),
   },
 };
