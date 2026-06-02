@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 import type { Event } from "../types";
 
 const SHIP_DAYS = 14; // ship gifts this many days before the event
@@ -31,9 +32,9 @@ const ZONE_META: Record<Zone, { label: string; dot: string }> = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  draft:    { label: "Черновик",          cls: "bg-black/10 text-black/50" },
-  pending:  { label: "Наборы подобраны",  cls: "bg-luxe-silver text-black/70" },
-  approved: { label: "Утверждён",         cls: "bg-luxe-black text-white" },
+  draft:    { label: "Черновик",           cls: "bg-black/10 text-black/50" },
+  pending:  { label: "На согласовании",    cls: "bg-amber-100 border border-amber-300/70 text-amber-800" },
+  approved: { label: "Утверждён",          cls: "bg-luxe-black text-white" },
 };
 
 function sortEvents(events: Event[], mode: SortMode): Event[] {
@@ -48,6 +49,7 @@ function sortEvents(events: Event[], mode: SortMode): Event[] {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -74,6 +76,11 @@ export default function DashboardPage() {
 
   const handleUnship = async (id: number) => {
     const updated = await api.events.unship(id);
+    setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+  };
+
+  const handleQuickApprove = async (id: number) => {
+    const updated = await api.events.approve(id);
     setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
   };
 
@@ -181,7 +188,9 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={event.id}
-                        className="card flex items-start justify-between gap-4 hover:shadow-lg transition-shadow"
+                        className={`card flex items-start justify-between gap-4 hover:shadow-lg transition-shadow overflow-hidden relative ${
+                          event.status === "pending" ? "border-l-[3px] border-amber-400 pl-[calc(1.25rem-1px)]" : ""
+                        }`}
                       >
                         {/* Info */}
                         <div className="flex-1 min-w-0">
@@ -244,11 +253,19 @@ export default function DashboardPage() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                          {/* Mark shipped / unship */}
-                          {!event.gifts_sent ? (
+                          {/* Ship / approve / unship logic */}
+                          {event.gifts_sent ? (
+                            <button
+                              className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5 transition-colors"
+                              onClick={() => handleUnship(event.id)}
+                              title="Снять отметку об отгрузке"
+                            >
+                              Отменить
+                            </button>
+                          ) : event.status === "approved" ? (
                             <button
                               className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
-                              onClick={() => { setShippingId(event.id); setShipDate(new Date().toISOString().slice(0,10)); }}
+                              onClick={() => { setShippingId(event.id); setShipDate(new Date().toISOString().slice(0, 10)); }}
                               title="Отметить как отгружено"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -256,15 +273,22 @@ export default function DashboardPage() {
                               </svg>
                               Отгружено
                             </button>
-                          ) : (
+                          ) : event.status === "pending" && role === "admin" ? (
                             <button
-                              className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5 transition-colors"
-                              onClick={() => handleUnship(event.id)}
-                              title="Снять отметку"
+                              className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
+                              onClick={() => handleQuickApprove(event.id)}
+                              title="Утвердить список подарков"
                             >
-                              Отменить
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                              Утвердить
                             </button>
-                          )}
+                          ) : event.status === "pending" ? (
+                            <span className="text-xs text-amber-700 font-medium px-2">
+                              Ожидает согласования
+                            </span>
+                          ) : null}
 
                           <Link
                             to={`/events/${event.id}/draft`}

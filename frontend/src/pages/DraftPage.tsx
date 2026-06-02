@@ -413,6 +413,41 @@ export default function DraftPage() {
         </div>
       </div>
 
+      {/* Pending approval banner */}
+      {event.status === "pending" && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4 flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          <div className="flex-1">
+            {role === "admin" ? (
+              <span className="text-sm font-semibold text-amber-900">
+                Список ожидает вашего утверждения —{" "}
+                <span className="font-normal text-amber-800">
+                  после утверждения сотрудники смогут отгружать подарки
+                </span>
+              </span>
+            ) : (
+              <span className="text-sm font-semibold text-amber-900">
+                Наборы отправлены на согласование —{" "}
+                <span className="font-normal text-amber-800">
+                  отгрузка будет доступна после утверждения администратора
+                </span>
+              </span>
+            )}
+          </div>
+          {role === "admin" && sets.length > 0 && (
+            <button
+              className="btn-primary text-sm shrink-0 flex items-center gap-1.5"
+              onClick={handleApprove}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Утвердить
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       {sets.length > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
