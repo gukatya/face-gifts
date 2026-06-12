@@ -269,7 +269,7 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div>
         <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">Статистика</p>
-        <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">Аналитика</h1>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-luxe-black uppercase">Аналитика</h1>
       </div>
 
       {/* ── 1. Shipping deadlines ── */}
@@ -285,28 +285,28 @@ export default function AnalyticsPage() {
                 <div key={d.id} className={`card border-l-4 ${
                   overdue ? "border-red-500" : hot ? "border-amber-400" : "border-black/20"
                 }`}>
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     {/* Left: info — whole block is a link */}
                     <Link
                       to={`/events/${d.id}/draft`}
                       className="flex-1 min-w-0 group"
                     >
-                      <div className="flex items-center gap-2.5 mb-1">
+                      <div className="flex items-center gap-2.5 mb-1 flex-wrap">
                         <span className="font-semibold text-luxe-black group-hover:underline">{d.name}</span>
                         <span className="badge bg-black/10 text-black/50">{d.level}</span>
                       </div>
-                      <div className="text-xs text-black/40 font-light flex flex-wrap gap-4">
+                      <div className="text-xs text-black/40 font-light flex flex-wrap gap-3">
                         <span>Ивент: {d.date}</span>
-                        <span>Отгрузить до: {d.ship_by}</span>
-                        <span>{d.region} · {d.country}</span>
+                        <span>До: {d.ship_by}</span>
+                        <span>{d.region}</span>
                       </div>
                     </Link>
 
                     {/* Right: urgency + ship button */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-3 sm:shrink-0">
                       <div className={`text-sm font-black ${overdue ? "text-red-500" : hot ? "text-amber-600" : "text-black/50"}`}>
                         {overdue
-                          ? `Просрочено на ${Math.abs(d.days_until_ship)} дн.`
+                          ? `−${Math.abs(d.days_until_ship)} дн.`
                           : d.days_until_ship === 0
                           ? "Сегодня!"
                           : `${d.days_until_ship} дн.`}
@@ -409,15 +409,16 @@ export default function AnalyticsPage() {
 
         {/* Table */}
         <div className="card overflow-hidden p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[540px]">
             <thead>
               <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-medium">Месяц отгрузки</th>
-                <th className="text-right px-5 py-3 font-medium">Мероприятий</th>
-                <th className="text-right px-5 py-3 font-medium">Отгружено</th>
-                <th className="text-right px-5 py-3 font-medium">План, ₽</th>
-                <th className="text-right px-5 py-3 font-medium">Факт, ₽</th>
-                <th className="text-right px-5 py-3 font-medium">Δ</th>
+                <th className="text-left px-4 sm:px-5 py-3 font-medium">Месяц</th>
+                <th className="text-right px-4 sm:px-5 py-3 font-medium">Ивентов</th>
+                <th className="text-right px-4 sm:px-5 py-3 font-medium">Отгружено</th>
+                <th className="text-right px-4 sm:px-5 py-3 font-medium">План, ₽</th>
+                <th className="text-right px-4 sm:px-5 py-3 font-medium">Факт, ₽</th>
+                <th className="text-right px-4 sm:px-5 py-3 font-medium">Δ</th>
                 <th className="px-3 py-3" />
               </tr>
             </thead>
@@ -436,10 +437,10 @@ export default function AnalyticsPage() {
                 const savings = s.planned - s.actual_cost; // positive = saved money
                 return (
                   <tr key={s.month} className="border-b border-black/5 hover:bg-black/5">
-                    <td className="px-5 py-3 font-medium text-luxe-black">{monthLabel(s.month)}</td>
-                    <td className="px-5 py-3 text-right text-black/50">{s.events_count}</td>
-                    <td className="px-5 py-3 text-right text-black/50">{s.shipped_count}</td>
-                    <td className="px-5 py-3 text-right text-black/60">
+                    <td className="px-4 sm:px-5 py-3 font-medium text-luxe-black">{monthLabel(s.month)}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-black/50">{s.events_count}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-black/50">{s.shipped_count}</td>
+                    <td className="px-4 sm:px-5 py-3 text-right text-black/60">
                       {isEditing ? (
                         <div className="flex items-center justify-end gap-1">
                           <input
@@ -492,6 +493,7 @@ export default function AnalyticsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
         <p className="text-xs text-black/30 mt-2 font-light">
           * Факт считается по месяцу отгрузки (дата ивента − {SHIP_DAYS} дней), сумма из поля «Бюджет» мероприятия.
@@ -522,7 +524,8 @@ export default function AnalyticsPage() {
               Нет отгруженных позиций за этот месяц
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[360px]">
               <thead>
                 <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
                   <th className="text-left px-5 py-3 font-medium">#</th>
@@ -549,6 +552,7 @@ export default function AnalyticsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
         <p className="text-xs text-black/30 mt-2 font-light">
@@ -565,14 +569,15 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <div className="card overflow-hidden p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[460px]">
               <thead>
                 <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
-                  <th className="text-left px-5 py-3 font-medium">Регион</th>
-                  <th className="text-left px-5 py-3 font-medium">Страны</th>
-                  <th className="text-right px-5 py-3 font-medium">Мероприятий</th>
-                  <th className="text-right px-5 py-3 font-medium">Объём, ₽</th>
-                  <th className="px-5 py-3" />
+                  <th className="text-left px-4 sm:px-5 py-3 font-medium">Регион</th>
+                  <th className="text-left px-4 sm:px-5 py-3 font-medium hidden sm:table-cell">Страны</th>
+                  <th className="text-right px-4 sm:px-5 py-3 font-medium">Ивентов</th>
+                  <th className="text-right px-4 sm:px-5 py-3 font-medium">Объём, ₽</th>
+                  <th className="px-4 sm:px-5 py-3 w-24" />
                 </tr>
               </thead>
               <tbody>
@@ -581,13 +586,13 @@ export default function AnalyticsPage() {
                   const pct = (g.total_cost / maxCost) * 100;
                   return (
                     <tr key={g.region} className="border-b border-black/5 hover:bg-black/5">
-                      <td className="px-5 py-3 font-semibold text-luxe-black">{g.region}</td>
-                      <td className="px-5 py-3 text-xs text-black/40 font-light">{g.countries.join(", ")}</td>
-                      <td className="px-5 py-3 text-right text-black/60">{g.events_count}</td>
-                      <td className="px-5 py-3 text-right font-black text-luxe-black">
+                      <td className="px-4 sm:px-5 py-3 font-semibold text-luxe-black">{g.region}</td>
+                      <td className="px-4 sm:px-5 py-3 text-xs text-black/40 font-light hidden sm:table-cell">{g.countries.join(", ")}</td>
+                      <td className="px-4 sm:px-5 py-3 text-right text-black/60">{g.events_count}</td>
+                      <td className="px-4 sm:px-5 py-3 text-right font-black text-luxe-black">
                         {g.total_cost > 0 ? g.total_cost.toLocaleString("ru-RU") : "—"}
                       </td>
-                      <td className="px-5 py-3 w-32">
+                      <td className="px-4 sm:px-5 py-3 w-20 sm:w-32">
                         <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-luxe-black rounded-full"
@@ -600,6 +605,7 @@ export default function AnalyticsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </section>

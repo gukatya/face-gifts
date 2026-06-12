@@ -284,7 +284,7 @@ export default function NewEventPage() {
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
         <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">Конструктор наборов</p>
-        <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-luxe-black uppercase">
           {isEditMode ? "Редактирование" : "Новое мероприятие"}
         </h1>
       </div>
@@ -310,7 +310,7 @@ export default function NewEventPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Дата *</label>
               <input
@@ -347,7 +347,7 @@ export default function NewEventPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Режим подбора</label>
               <select

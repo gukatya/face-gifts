@@ -236,7 +236,8 @@ export default function ReferencePage() {
       <section>
         <h2 className="section-title mb-4">Шкала Фицпатрика</h2>
         <div className="card overflow-hidden p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[420px]">
             <thead>
               <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
                 <th className="text-left px-5 py-3 font-medium w-8">Тип</th>
@@ -264,6 +265,7 @@ export default function ReferencePage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -271,7 +273,8 @@ export default function ReferencePage() {
       <section>
         <h2 className="section-title mb-4">Типичные типы кожи по регионам</h2>
         <div className="card overflow-hidden p-0">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[360px]">
             <thead>
               <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
                 <th className="text-left px-5 py-3 font-medium">Регион</th>
@@ -303,6 +306,7 @@ export default function ReferencePage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
@@ -325,9 +329,9 @@ export default function ReferencePage() {
           <div className="space-y-4">
             {/* Fitzpatrick range for this region */}
             {REGION_FITZ[selectedRegion] && (
-              <div className="card flex flex-wrap items-center gap-4 py-3">
-                <span className="text-xs tracking-widest uppercase text-black/40">Типичный тип кожи</span>
-                <div className="flex items-end gap-2.5">
+              <div className="card flex flex-wrap items-center gap-3 py-3">
+                <span className="text-xs tracking-widest uppercase text-black/40 w-full sm:w-auto">Типичный тип кожи</span>
+                <div className="flex items-end gap-1.5 sm:gap-2.5">
                   {FITZ_TYPES.map((f, i) => {
                     const rf = REGION_FITZ[selectedRegion];
                     const inRange = (i + 1) >= rf.min && (i + 1) <= rf.max;
@@ -337,7 +341,7 @@ export default function ReferencePage() {
                         className={`flex flex-col items-center gap-1 transition-opacity ${inRange ? "opacity-100" : "opacity-20"}`}
                       >
                         <div
-                          className={`rounded-full border ${inRange ? "w-9 h-9 border-black/25" : "w-7 h-7 border-black/10"}`}
+                          className={`rounded-full border ${inRange ? "w-7 h-7 sm:w-9 sm:h-9 border-black/25" : "w-6 h-6 sm:w-7 sm:h-7 border-black/10"}`}
                           style={{ backgroundColor: f.color }}
                         />
                         <span className={`text-xs font-bold ${inRange ? "text-black" : "text-black/30"}`}>{f.type}</span>

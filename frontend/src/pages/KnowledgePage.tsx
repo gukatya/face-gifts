@@ -260,15 +260,16 @@ function RegionsTab({ regions, allPigments }: RegionsTabProps) {
   };
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
       {/* Sidebar */}
-      <div className="w-48 shrink-0">
+      <div className="w-full sm:w-48 sm:shrink-0">
         <div className="card p-2">
+          <div className="flex sm:flex-col overflow-x-auto sm:overflow-visible gap-1 pb-1 sm:pb-0">
           {regions.map((r) => (
             <button
               key={r}
               onClick={() => setSelectedRegion(r)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+              className={`shrink-0 sm:w-full text-left px-3 py-2 rounded-lg text-sm transition-colors whitespace-nowrap ${
                 selectedRegion === r
                   ? "bg-luxe-black text-white font-medium"
                   : "hover:bg-luxe-grey text-black/60"
@@ -277,6 +278,7 @@ function RegionsTab({ regions, allPigments }: RegionsTabProps) {
               {r}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -439,7 +441,8 @@ function PigmentsTab({ regions }: { regions: string[] }) {
         <div className="text-sm text-gray-400">Загрузка...</div>
       ) : (
         <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
             <thead className="bg-black/3 border-b border-black/8">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Название</th>
@@ -542,6 +545,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -669,7 +673,8 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
         <div className="text-sm text-gray-400">Загрузка...</div>
       ) : (
         <div className="card p-0 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[580px]">
             <thead className="bg-black/3 border-b border-black/8">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Название</th>
@@ -780,6 +785,7 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -823,11 +829,11 @@ export default function KnowledgePage() {
     <div>
       <div className="mb-8">
         <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">Настройки</p>
-        <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">База знаний</h1>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-luxe-black uppercase">База знаний</h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-black/10">
+      <div className="flex gap-1 mb-6 border-b border-black/10 overflow-x-auto scrollbar-none">
         {TABS.map((tab) => (
           <button
             key={tab}

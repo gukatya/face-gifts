@@ -97,16 +97,16 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-end justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end justify-between mb-6 sm:mb-8">
         <div>
           <p className="text-xs tracking-widest uppercase text-luxe-grey-mid mb-1">
             Конструктор наборов
           </p>
-          <h1 className="text-3xl font-black tracking-tight text-luxe-black uppercase">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-luxe-black uppercase">
             Мероприятия
           </h1>
         </div>
-        <Link to="/events/new" className="btn-primary flex items-center gap-2">
+        <Link to="/events/new" className="btn-primary flex items-center gap-2 self-start sm:self-auto">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -115,24 +115,24 @@ export default function DashboardPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex gap-3 items-center mb-6 flex-wrap">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
-          className="input max-w-xs"
+          className="input w-full sm:max-w-xs"
           placeholder="Поиск по названию..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="flex gap-1 ml-auto flex-wrap">
+        <div className="flex gap-1 sm:ml-auto flex-wrap">
           {([
-            ["date_asc",     "По мероприятию ↑"],
-            ["date_desc",    "По мероприятию ↓"],
+            ["date_asc",     "По дате ↑"],
+            ["date_desc",    "По дате ↓"],
             ["created_asc",  "По добавлению ↑"],
             ["created_desc", "По добавлению ↓"],
           ] as [SortMode, string][]).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setSort(key)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap ${
                 sort === key
                   ? "bg-luxe-black text-white border-luxe-black"
                   : "bg-white/60 border-black/10 text-black/50 hover:text-black/80"
@@ -188,8 +188,8 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={event.id}
-                        className={`card flex items-start justify-between gap-4 hover:shadow-lg transition-shadow overflow-hidden relative ${
-                          event.status === "pending" ? "border-l-[3px] border-amber-400 pl-[calc(1.25rem-1px)]" : ""
+                        className={`card flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:shadow-lg transition-shadow overflow-hidden relative ${
+                          event.status === "pending" ? "border-l-[3px] border-amber-400 pl-[calc(1rem-1px)] sm:pl-[calc(1.25rem-1px)]" : ""
                         }`}
                       >
                         {/* Info */}
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                        <div className="flex items-center gap-2 flex-wrap justify-start sm:justify-end sm:shrink-0">
                           {/* Ship / approve / unship logic */}
                           {event.gifts_sent ? (
                             <button

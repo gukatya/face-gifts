@@ -332,7 +332,7 @@ export default function DraftPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
           <Link to="/" className="text-xs tracking-widest uppercase text-luxe-grey-mid hover:text-black/60 mb-2 inline-block transition-colors">
             ← Все мероприятия
@@ -357,7 +357,7 @@ export default function DraftPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-end">
+        <div className="flex gap-2 flex-wrap justify-start sm:justify-end sm:shrink-0">
           {previousSets && (
             <button
               className="btn-secondary text-sm"
@@ -450,7 +450,7 @@ export default function DraftPage() {
 
       {/* Summary */}
       {sets.length > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="card text-center">
             <div className="text-2xl font-black text-luxe-black">{totalGiftCount}</div>
             <div className="text-xs text-black/40 mt-0.5">подарков итого</div>
@@ -602,8 +602,9 @@ export default function DraftPage() {
 
                 {/* Expanded content */}
                 {expanded.has(gs.id) && (
-                  <div className="border-t border-black/5 px-5 py-3">
-                    <table className="w-full text-sm">
+                  <div className="border-t border-black/5 px-3 sm:px-5 py-3">
+                    <div className="overflow-x-auto -mx-1">
+                    <table className="w-full text-sm min-w-[420px]">
                       <thead>
                         <tr className="text-xs text-black/30 border-b border-black/5">
                           <th className="text-left pb-2 font-medium w-8">#</th>
@@ -658,6 +659,8 @@ export default function DraftPage() {
                         </tr>
                       </tfoot>
                     </table>
+
+                    </div>
 
                     {/* Add item row (edit mode only) */}
                     {isEditing && (
