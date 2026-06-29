@@ -86,6 +86,9 @@ export default function DraftPage() {
   };
 
   useEffect(() => { load(); }, [eventId]);
+  // Preload catalog up front — the first gift set auto-expands on load,
+  // bypassing toggleExpand() (which previously was the only trigger for this)
+  useEffect(() => { loadCatalog(); }, []);
 
   const loadCatalog = async () => {
     if (catalogLoaded) return;
@@ -672,40 +675,31 @@ export default function DraftPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot>
-                        <tr>
-                          <td colSpan={4} className="pt-2 text-right text-sm font-semibold text-black/50 whitespace-nowrap">
-                            Итого набор:
-                          </td>
-                          <td colSpan={2} className="pt-2 text-right font-black text-luxe-black whitespace-nowrap">
-                            {displayTotal.toLocaleString("ru-RU")} ₽
-                          </td>
-                        </tr>
-                      </tfoot>
                     </table>
                     </div>
 
-                    {/* Add item — always shown when expanded */}
-                    <div className="mt-3 relative">
-                      <input
-                        ref={isAddingToThis ? addInputRef : undefined}
-                        type="text"
-                        className="input text-sm w-full"
-                        placeholder="Добавить позицию — начните вводить название..."
-                        value={isAddingToThis ? addQuery : ""}
-                        onChange={(e) => {
-                          setAddSetId(gs.id);
-                          setAddQuery(e.target.value);
-                          setShowDropdown(true);
-                        }}
-                        onFocus={() => {
-                          setAddSetId(gs.id);
-                          if (addQuery.trim()) setShowDropdown(true);
-                        }}
-                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                      />
-                      {showDropdown && isAddingToThis && filteredCatalog.length > 0 && (
-                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {/* Add item (compact) + totals — single row */}
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="relative w-56 shrink-0">
+                        <input
+                          ref={isAddingToThis ? addInputRef : undefined}
+                          type="text"
+                          className="input text-sm w-full py-1.5"
+                          placeholder="Добавить позицию..."
+                          value={isAddingToThis ? addQuery : ""}
+                          onChange={(e) => {
+                            setAddSetId(gs.id);
+                            setAddQuery(e.target.value);
+                            setShowDropdown(true);
+                          }}
+                          onFocus={() => {
+                            setAddSetId(gs.id);
+                            if (addQuery.trim()) setShowDropdown(true);
+                          }}
+                          onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                        />
+                        {showDropdown && isAddingToThis && filteredCatalog.length > 0 && (
+                          <div className="absolute z-50 left-0 w-80 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                           {filteredCatalog.map((entry) => {
                             const already = currentItems.some(
                               (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
@@ -732,11 +726,19 @@ export default function DraftPage() {
                           })}
                         </div>
                       )}
-                      {showDropdown && isAddingToThis && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
-                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
-                          Ничего не найдено
-                        </div>
-                      )}
+                        {showDropdown && isAddingToThis && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
+                          <div className="absolute z-50 left-0 w-80 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
+                            Ничего не найдено
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-sm text-black/50 ml-auto whitespace-nowrap">
+                        Итого набор:{" "}
+                        <span className="font-black text-luxe-black">
+                          {displayTotal.toLocaleString("ru-RU")} ₽
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
