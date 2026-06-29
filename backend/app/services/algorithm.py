@@ -468,6 +468,11 @@ def select_items_for_budget(
         "Organic brows":    "гибрид",
     }
 
+    # Минимум оттенков для топовых мест — даже если на этого человека выпала
+    # тонкая доля общего бюджета (много номинаций/победителей размывают бюджет),
+    # призовое место не должно выглядеть пустым.
+    MIN_SHADES_BY_PLACE = {"1": 3, "2": 2}
+
     # Место передано явно — используем place как МАКСИМУМ; бюджет может снизить качество
     if place and place in PLACE_SHADE_COUNT:
         default_level = PLACE_LEVEL.get(place, "Нормальный")
@@ -483,6 +488,10 @@ def select_items_for_budget(
                 level = default_level
             # Оттенков берём не больше, чем позволяет место И бюджет
             shade_count = min(default_shades, max(1, budget_shades))
+            # ...но не ниже гарантированного минимума для этого места
+            min_floor = MIN_SHADES_BY_PLACE.get(place)
+            if min_floor:
+                shade_count = max(shade_count, min(min_floor, default_shades))
         else:
             level = default_level
             shade_count = default_shades
