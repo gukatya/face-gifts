@@ -699,7 +699,7 @@ export default function DraftPage() {
                           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                         />
                         {showDropdown && isAddingToThis && filteredCatalog.length > 0 && (
-                          <div className="absolute z-50 left-0 w-80 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                          <div className="absolute z-50 left-0 w-[26rem] top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                           {filteredCatalog.map((entry) => {
                             const already = currentItems.some(
                               (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
@@ -707,18 +707,20 @@ export default function DraftPage() {
                             return (
                               <button
                                 key={`${entry.sku_type}-${entry.sku_id}`}
-                                className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
+                                className={`w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => !already && addItem(gs, entry)}
                               >
-                                <span className="flex items-center gap-2">
-                                  <span className={`badge text-xs ${SKU_BADGE[entry.sku_type] ?? "bg-black/10 text-black/50"}`}>
+                                <span className="flex items-start gap-3 min-w-0">
+                                  <span className={`badge text-xs shrink-0 whitespace-nowrap w-24 justify-center ${SKU_BADGE[entry.sku_type] ?? "bg-black/10 text-black/50"}`}>
                                     {SKU_LABEL[entry.sku_type]}
                                   </span>
-                                  <span className="font-medium text-luxe-black">{entry.name}</span>
-                                  {entry.line && <span className="text-black/30 text-xs">({entry.line})</span>}
+                                  <span className="min-w-0">
+                                    <span className="font-medium text-luxe-black">{entry.name}</span>
+                                    {entry.line && <span className="text-black/30 text-xs ml-1">({entry.line})</span>}
+                                  </span>
                                 </span>
-                                <span className="text-black/40 shrink-0 ml-3">
+                                <span className="text-black/40 shrink-0 whitespace-nowrap">
                                   {entry.price.toLocaleString("ru-RU")} ₽
                                 </span>
                               </button>
@@ -727,7 +729,7 @@ export default function DraftPage() {
                         </div>
                       )}
                         {showDropdown && isAddingToThis && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
-                          <div className="absolute z-50 left-0 w-80 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
+                          <div className="absolute z-50 left-0 w-[26rem] top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
                             Ничего не найдено
                           </div>
                         )}
