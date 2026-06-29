@@ -382,7 +382,7 @@ export default function DraftPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {previousSets && (
             <button
               className="btn-secondary text-sm"
@@ -406,37 +406,6 @@ export default function DraftPage() {
             {generating ? "Подбираем..." : "Другой вариант"}
           </button>
 
-          {/* Submit for approval — employee/admin on draft */}
-          {event.status === "draft" && sets.length > 0 && (
-            <button
-              className="btn-primary text-sm flex items-center gap-1.5"
-              onClick={handleSubmit}
-            >
-              Отправить на согласование
-            </button>
-          )}
-          {/* Recall to draft — when still pending */}
-          {event.status === "pending" && (
-            <button
-              className="btn-secondary text-sm text-black/50"
-              onClick={handleRecall}
-              title="Вернуть в черновик для доработки"
-            >
-              Отозвать
-            </button>
-          )}
-
-          {/* Approve happens from the banner below — keep only unapprove here */}
-          {role === "admin" && event.status === "approved" && (
-            <button
-              className="btn-secondary text-sm text-black/40"
-              onClick={handleUnapprove}
-              title="Снять утверждение"
-            >
-              Снять утверждение
-            </button>
-          )}
-
           {/* Export buttons */}
           {sets.length > 0 && (
             <>
@@ -458,43 +427,58 @@ export default function DraftPage() {
               </button>
             </>
           )}
-        </div>
-      </div>
 
-      {/* Pending approval banner */}
-      {event.status === "pending" && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/70 px-5 py-4 flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-          <div className="flex-1">
-            {role === "admin" ? (
-              <span className="text-sm font-semibold text-amber-900">
-                Список ожидает вашего утверждения —{" "}
-                <span className="font-normal text-amber-800">
-                  после утверждения сотрудники смогут отгружать подарки
-                </span>
-              </span>
-            ) : (
-              <span className="text-sm font-semibold text-amber-900">
-                Наборы отправлены на согласование —{" "}
-                <span className="font-normal text-amber-800">
-                  отгрузка будет доступна после утверждения администратора
-                </span>
-              </span>
+          {/* Status-progress group — pushed to the right */}
+          <div className="flex gap-2 ml-auto">
+            {/* Submit for approval — employee/admin on draft */}
+            {event.status === "draft" && sets.length > 0 && (
+              <button
+                className="btn-primary text-sm flex items-center gap-1.5"
+                onClick={handleSubmit}
+              >
+                Отправить на согласование
+              </button>
+            )}
+
+            {/* Recall to draft — when still pending */}
+            {event.status === "pending" && (
+              <button
+                className="btn-secondary text-sm text-black/50"
+                onClick={handleRecall}
+                title="Вернуть в черновик для доработки"
+              >
+                Отозвать
+              </button>
+            )}
+
+            {/* Approve — stays visible once approved, just disabled + highlighted */}
+            {role === "admin" && sets.length > 0 && (event.status === "pending" || event.status === "approved") && (
+              <button
+                className={`btn-primary text-sm flex items-center gap-1.5 ${
+                  event.status === "approved" ? "pointer-events-none" : ""
+                }`}
+                onClick={event.status === "pending" ? handleApprove : undefined}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                {event.status === "approved" ? "Утверждено" : "Утвердить"}
+              </button>
+            )}
+
+            {/* Revert approval — small, separate from the highlighted state above */}
+            {role === "admin" && event.status === "approved" && (
+              <button
+                className="text-xs text-black/30 hover:text-black/60 transition-colors px-1"
+                onClick={handleUnapprove}
+                title="Снять утверждение"
+              >
+                Снять
+              </button>
             )}
           </div>
-          {role === "admin" && sets.length > 0 && (
-            <button
-              className="btn-primary text-sm shrink-0 flex items-center gap-1.5"
-              onClick={handleApprove}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Утвердить
-            </button>
-          )}
         </div>
-      )}
+      </div>
 
       {/* Summary */}
       {sets.length > 0 && (
