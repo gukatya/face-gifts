@@ -58,7 +58,12 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ items }),
       }),
-    exportUrl: (id: number) => `/api/events/${id}/export`,
+    exportUrl: (id: number, format: "manager" | "organizer" = "manager") =>
+      `/api/events/${id}/export?format=${format}`,
+    submit: (id: number) =>
+      request<Event>(`/events/${id}/submit`, { method: "PATCH" }),
+    recall: (id: number) =>
+      request<Event>(`/events/${id}/recall`, { method: "PATCH" }),
     ship: (id: number, shippedDate?: string) =>
       request<Event>(`/events/${id}/ship`, {
         method: "PATCH",

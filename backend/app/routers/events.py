@@ -113,11 +113,34 @@ def generate_event_draft(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     sets = generate_draft(db, event, variant=variant)
-    # Auto-advance: draft → pending once sets exist
-    if event.status == "draft":
-        event.status = "pending"
     db.commit()
     return sets
+
+
+@router.patch("/{event_id}/submit", response_model=EventOut)
+def submit_event(event_id: int, db: Session = Depends(get_db)):
+    """Employee manually submits draft for admin approval."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.status == "draft":
+        event.status = "pending"
+        db.commit()
+        db.refresh(event)
+    return event
+
+
+@router.patch("/{event_id}/recall", response_model=EventOut)
+def recall_event(event_id: int, db: Session = Depends(get_db)):
+    """Employee recalls submission — back to draft for more editing."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.status == "pending":
+        event.status = "draft"
+        db.commit()
+        db.refresh(event)
+    return event
 
 
 @router.patch("/{event_id}/approve", response_model=EventOut, dependencies=[Depends(require_admin)])
@@ -190,17 +213,27 @@ def unship_event(event_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{event_id}/export")
-def export_event(event_id: int, db: Session = Depends(get_db)):
+def export_event(
+    event_id: int,
+    format: str = Query("manager", regex="^(manager|organizer)$"),
+    db: Session = Depends(get_db),
+):
+    from ..services.export_excel import export_event_organizer
+    from urllib.parse import quote
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     sets = db.query(GiftSet).filter(GiftSet.event_id == event_id).all()
     if not sets:
         raise HTTPException(status_code=400, detail="Generate draft first")
-    data = export_event_to_excel(event, sets)
-    from urllib.parse import quote
-    safe_name = f"FACE_Gift_{event.id}.xlsx"
-    display_name = f"FACE_Gift_{event.name.replace(' ', '_')}.xlsx"
+    if format == "organizer":
+        data = export_event_organizer(event, sets)
+        safe_name = f"FACE_Organizer_{event.id}.xlsx"
+        display_name = f"FACE_Organizer_{event.name.replace(' ', '_')}.xlsx"
+    else:
+        data = export_event_to_excel(event, sets)
+        safe_name = f"FACE_Gift_{event.id}.xlsx"
+        display_name = f"FACE_Gift_{event.name.replace(' ', '_')}.xlsx"
     encoded_name = quote(display_name, safe="")
     return StreamingResponse(
         io.BytesIO(data),

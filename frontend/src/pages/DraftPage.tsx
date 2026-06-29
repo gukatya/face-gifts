@@ -65,15 +65,15 @@ export default function DraftPage() {
   const [previousBudget, setPreviousBudget] = useState<number | null>(null);
   const [applyingBudget, setApplyingBudget] = useState(false);
 
-  // Edit state
-  const [editingSetId, setEditingSetId] = useState<number | null>(null);
-  const [editItems, setEditItems] = useState<GiftItem[]>([]);
-  const [saving, setSaving] = useState(false);
+  // Inline edit state: per-set dirty items (only set when user modifies)
+  const [dirtyItems, setDirtyItems] = useState<Record<number, GiftItem[]>>({});
+  const [savingId, setSavingId] = useState<number | null>(null);
 
   // Catalog for add-item search
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [catalogLoaded, setCatalogLoaded] = useState(false);
   const [addQuery, setAddQuery] = useState("");
+  const [addSetId, setAddSetId] = useState<number | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,7 +121,7 @@ export default function DraftPage() {
   const handleGenerate = async () => {
     const nextVariant = variant + 1;
     setGenerating(true);
-    setEditingSetId(null);
+    setDirtyItems({});
     try {
       const ss = await api.events.generate(eventId, nextVariant);
       setPreviousSets(sets.length > 0 ? sets : null);
@@ -184,16 +184,28 @@ export default function DraftPage() {
     setEvent(updated);
   };
 
-  const handleExport = async () => {
+  const handleSubmit = async () => {
+    const updated = await api.events.submit(eventId);
+    setEvent(updated);
+  };
+
+  const handleRecall = async () => {
+    const updated = await api.events.recall(eventId);
+    setEvent(updated);
+  };
+
+  const handleExport = async (format: "manager" | "organizer" = "manager") => {
     setExporting(true);
     try {
-      const res = await fetch(api.events.exportUrl(eventId));
+      const res = await fetch(api.events.exportUrl(eventId, format));
       if (!res.ok) throw new Error("Ошибка экспорта");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `FACE_Gift_${eventId}.xlsx`;
+      a.download = format === "organizer"
+        ? `FACE_Organizer_${eventId}.xlsx`
+        : `FACE_Gift_${eventId}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -227,7 +239,7 @@ export default function DraftPage() {
   const handleApplyBudget = async () => {
     if (!event || targetBudget === null) return;
     setApplyingBudget(true);
-    setEditingSetId(null);
+    setDirtyItems({});
     try {
       setPreviousBudget(event.total_budget ?? null);
       await api.events.update(eventId, buildEventPayload(event, { total_budget: targetBudget }));
@@ -243,52 +255,52 @@ export default function DraftPage() {
     }
   };
 
-  const toggleExpand = (setId: number) => {
-    if (editingSetId === setId) return; // keep open while editing
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(setId)) next.delete(setId);
-      else next.add(setId);
+  // ── Inline editing helpers ──────────────────────────────────────────────────
+
+  const isDirty = (setId: number) => setId in dirtyItems;
+
+  const getItems = (gs: GiftSet): GiftItem[] =>
+    isDirty(gs.id) ? dirtyItems[gs.id] : (gs.items || []);
+
+  const removeItem = (gs: GiftSet, item: GiftItem) => {
+    const current = getItems(gs);
+    setDirtyItems((prev) => ({
+      ...prev,
+      [gs.id]: current.filter(
+        (i) => !(i.sku_type === item.sku_type && i.sku_id === item.sku_id)
+      ),
+    }));
+  };
+
+  const cancelEdit = (gs: GiftSet) => {
+    setDirtyItems((prev) => {
+      const next = { ...prev };
+      delete next[gs.id];
       return next;
     });
-  };
-
-  const startEdit = async (gs: GiftSet) => {
-    setEditingSetId(gs.id);
-    setEditItems(gs.items.map((i) => ({ ...i })));
-    setAddQuery("");
-    setShowDropdown(false);
-    setExpanded((prev) => new Set([...prev, gs.id]));
-    await loadCatalog();
-  };
-
-  const cancelEdit = () => {
-    setEditingSetId(null);
-    setEditItems([]);
-    setAddQuery("");
-    setShowDropdown(false);
-  };
-
-  const saveEdit = async () => {
-    if (editingSetId === null) return;
-    setSaving(true);
-    try {
-      const updated = await api.events.updateSet(eventId, editingSetId, editItems);
-      setSets((prev) => prev.map((s) => (s.id === editingSetId ? updated : s)));
-      setEditingSetId(null);
-      setEditItems([]);
-    } finally {
-      setSaving(false);
+    if (addSetId === gs.id) {
+      setAddSetId(null);
+      setAddQuery("");
+      setShowDropdown(false);
     }
   };
 
-  const removeItem = (idx: number) => {
-    setEditItems((prev) => prev.filter((_, i) => i !== idx));
+  const saveEdit = async (gs: GiftSet) => {
+    const items = dirtyItems[gs.id];
+    if (!items) return;
+    setSavingId(gs.id);
+    try {
+      const updated = await api.events.updateSet(eventId, gs.id, items);
+      setSets((prev) => prev.map((s) => (s.id === gs.id ? updated : s)));
+      cancelEdit(gs);
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const addItem = (entry: CatalogEntry) => {
-    // Avoid exact duplicate (same sku_type + sku_id)
-    if (editItems.some((i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id)) return;
+  const addItem = (gs: GiftSet, entry: CatalogEntry) => {
+    const current = getItems(gs);
+    if (current.some((i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id)) return;
     const newItem: GiftItem = {
       sku_type: entry.sku_type,
       sku_id: entry.sku_id,
@@ -299,10 +311,23 @@ export default function DraftPage() {
       qty: 1,
       price: entry.price,
     };
-    setEditItems((prev) => [...prev, newItem]);
+    setDirtyItems((prev) => ({
+      ...prev,
+      [gs.id]: [...current, newItem],
+    }));
     setAddQuery("");
     setShowDropdown(false);
     addInputRef.current?.focus();
+  };
+
+  const toggleExpand = (setId: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(setId)) next.delete(setId);
+      else next.add(setId);
+      return next;
+    });
+    loadCatalog(); // preload catalog silently when any set is opened
   };
 
   // Sort items: samples first → pigments (grouped by line, lines alpha) → consumables (alpha)
@@ -381,6 +406,26 @@ export default function DraftPage() {
             {generating ? "Подбираем..." : "Другой вариант"}
           </button>
 
+          {/* Submit for approval — employee/admin on draft */}
+          {event.status === "draft" && sets.length > 0 && (
+            <button
+              className="btn-primary text-sm flex items-center gap-1.5"
+              onClick={handleSubmit}
+            >
+              Отправить на согласование
+            </button>
+          )}
+          {/* Recall to draft — when still pending */}
+          {event.status === "pending" && (
+            <button
+              className="btn-secondary text-sm text-black/50"
+              onClick={handleRecall}
+              title="Вернуть в черновик для доработки"
+            >
+              Отозвать
+            </button>
+          )}
+
           {/* Approve / unapprove — admin only */}
           {role === "admin" && event.status === "pending" && sets.length > 0 && (
             <button
@@ -403,13 +448,27 @@ export default function DraftPage() {
             </button>
           )}
 
-          <button
-            className="btn-secondary text-sm"
-            onClick={handleExport}
-            disabled={exporting || sets.length === 0}
-          >
-            {exporting ? "Экспорт..." : "Экспорт Excel"}
-          </button>
+          {/* Export buttons */}
+          {sets.length > 0 && (
+            <>
+              <button
+                className="btn-secondary text-sm"
+                onClick={() => handleExport("manager")}
+                disabled={exporting}
+                title="Сводный список позиций для склада (с ценами)"
+              >
+                {exporting ? "..." : "Экспорт: склад"}
+              </button>
+              <button
+                className="btn-secondary text-sm"
+                onClick={() => handleExport("organizer")}
+                disabled={exporting}
+                title="Таблица наборов для организатора (без цен)"
+              >
+                {exporting ? "..." : "Экспорт: организатор"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -531,16 +590,16 @@ export default function DraftPage() {
       ) : (
         <div className="space-y-3">
           {sets.map((gs) => {
-            const isEditing = editingSetId === gs.id;
-            const displayItems = sortItems(isEditing ? editItems : gs.items);
-            const displayTotal = isEditing
-              ? editItems.reduce((s, i) => s + i.price * i.qty, 0)
-              : gs.total_price;
+            const dirty = isDirty(gs.id);
+            const currentItems = getItems(gs);
+            const displayItems = sortItems(currentItems);
+            const displayTotal = currentItems.reduce((s, i) => s + i.price * i.qty, 0);
+            const isAddingToThis = addSetId === gs.id;
 
             return (
-              <div key={gs.id} className={`card overflow-hidden p-0 ${isEditing ? "ring-2 ring-black/20" : ""}`}>
+              <div key={gs.id} className={`card p-0 ${dirty ? "overflow-visible ring-2 ring-black/15" : "overflow-hidden"}`}>
                 {/* Row header */}
-                <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 transition-colors">
+                <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 transition-colors rounded-2xl">
                   <button
                     className="flex items-center gap-3 flex-1 text-left"
                     onClick={() => toggleExpand(gs.id)}
@@ -562,33 +621,23 @@ export default function DraftPage() {
                       {displayTotal.toLocaleString("ru-RU")} ₽
                     </span>
 
-                    {isEditing ? (
+                    {dirty && (
                       <div className="flex gap-1.5">
                         <button
                           className="btn-primary text-xs px-3 py-1"
-                          onClick={saveEdit}
-                          disabled={saving}
+                          onClick={(e) => { e.stopPropagation(); saveEdit(gs); }}
+                          disabled={savingId === gs.id}
                         >
-                          {saving ? "..." : "Сохранить"}
+                          {savingId === gs.id ? "..." : "Сохранить"}
                         </button>
                         <button
                           className="btn-secondary text-xs px-3 py-1"
-                          onClick={cancelEdit}
-                          disabled={saving}
+                          onClick={(e) => { e.stopPropagation(); cancelEdit(gs); }}
+                          disabled={savingId === gs.id}
                         >
-                          Отмена
+                          Отменить
                         </button>
                       </div>
-                    ) : (
-                      <button
-                        className="text-black/25 hover:text-black/70 transition-colors p-1"
-                        title="Редактировать набор"
-                        onClick={(e) => { e.stopPropagation(); startEdit(gs); }}
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                        </svg>
-                      </button>
                     )}
 
                     <button
@@ -612,12 +661,12 @@ export default function DraftPage() {
                           <th className="text-left pb-2 font-medium">Тип</th>
                           <th className="text-center pb-2 font-medium w-12">Кол</th>
                           <th className="text-right pb-2 font-medium w-24">Цена</th>
-                          {isEditing && <th className="w-8" />}
+                          <th className="w-6" />
                         </tr>
                       </thead>
                       <tbody>
                         {displayItems.map((item, idx) => (
-                          <tr key={idx} className="border-b border-black/5 hover:bg-black/5">
+                          <tr key={`${item.sku_type}-${item.sku_id}-${idx}`} className="border-b border-black/5 hover:bg-black/5 group">
                             <td className="py-1.5 text-black/30 text-xs">{idx + 1}</td>
                             <td className="py-1.5 font-medium text-luxe-black">
                               {item.name}
@@ -634,82 +683,84 @@ export default function DraftPage() {
                             <td className="py-1.5 text-right text-black/60">
                               {item.price.toLocaleString("ru-RU")} ₽
                             </td>
-                            {isEditing && (
-                              <td className="py-1.5 pl-2">
-                                <button
-                                  className="text-gray-300 hover:text-red-500 transition-colors text-base leading-none"
-                                  onClick={() => removeItem(idx)}
-                                  title="Удалить"
-                                >
-                                  ×
-                                </button>
-                              </td>
-                            )}
+                            <td className="py-1.5 pl-1">
+                              <button
+                                className="opacity-0 group-hover:opacity-100 text-black/25 hover:text-red-500 transition-all text-lg leading-none w-5 text-center"
+                                onClick={() => removeItem(gs, item)}
+                                title="Удалить позицию"
+                              >
+                                ×
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={isEditing ? 5 : 4} className="pt-2 text-right text-sm font-semibold text-black/50">
+                          <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-black/50">
                             Итого набор:
                           </td>
-                          <td className="pt-2 text-right font-black text-luxe-black" colSpan={isEditing ? 2 : 1}>
+                          <td className="pt-2 text-right font-black text-luxe-black pl-1">
                             {displayTotal.toLocaleString("ru-RU")} ₽
                           </td>
                         </tr>
                       </tfoot>
                     </table>
-
                     </div>
 
-                    {/* Add item row (edit mode only) */}
-                    {isEditing && (
-                      <div className="mt-3 relative">
-                        <input
-                          ref={addInputRef}
-                          type="text"
-                          className="input text-sm w-full"
-                          placeholder="Добавить позицию — начните вводить название..."
-                          value={addQuery}
-                          onChange={(e) => { setAddQuery(e.target.value); setShowDropdown(true); }}
-                          onFocus={() => { if (addQuery.trim()) setShowDropdown(true); }}
-                          onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                        />
-                        {showDropdown && filteredCatalog.length > 0 && (
-                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                            {filteredCatalog.map((entry) => {
-                              const already = editItems.some(
-                                (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
-                              );
-                              return (
-                                <button
-                                  key={`${entry.sku_type}-${entry.sku_id}`}
-                                  className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => !already && addItem(entry)}
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <span className={`badge text-xs ${SKU_BADGE[entry.sku_type] ?? "bg-black/10 text-black/50"}`}>
-                                      {SKU_LABEL[entry.sku_type]}
-                                    </span>
-                                    <span className="font-medium text-luxe-black">{entry.name}</span>
-                                    {entry.line && <span className="text-black/30 text-xs">({entry.line})</span>}
+                    {/* Add item — always shown when expanded */}
+                    <div className="mt-3 relative">
+                      <input
+                        ref={isAddingToThis ? addInputRef : undefined}
+                        type="text"
+                        className="input text-sm w-full"
+                        placeholder="Добавить позицию — начните вводить название..."
+                        value={isAddingToThis ? addQuery : ""}
+                        onChange={(e) => {
+                          setAddSetId(gs.id);
+                          setAddQuery(e.target.value);
+                          setShowDropdown(true);
+                        }}
+                        onFocus={() => {
+                          setAddSetId(gs.id);
+                          if (addQuery.trim()) setShowDropdown(true);
+                        }}
+                        onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                      />
+                      {showDropdown && isAddingToThis && filteredCatalog.length > 0 && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                          {filteredCatalog.map((entry) => {
+                            const already = currentItems.some(
+                              (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
+                            );
+                            return (
+                              <button
+                                key={`${entry.sku_type}-${entry.sku_id}`}
+                                className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => !already && addItem(gs, entry)}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className={`badge text-xs ${SKU_BADGE[entry.sku_type] ?? "bg-black/10 text-black/50"}`}>
+                                    {SKU_LABEL[entry.sku_type]}
                                   </span>
-                                  <span className="text-black/40 shrink-0 ml-3">
-                                    {entry.price.toLocaleString("ru-RU")} ₽
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {showDropdown && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
-                          <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
-                            Ничего не найдено
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                  <span className="font-medium text-luxe-black">{entry.name}</span>
+                                  {entry.line && <span className="text-black/30 text-xs">({entry.line})</span>}
+                                </span>
+                                <span className="text-black/40 shrink-0 ml-3">
+                                  {entry.price.toLocaleString("ru-RU")} ₽
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {showDropdown && isAddingToThis && addQuery.trim().length >= 1 && filteredCatalog.length === 0 && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg px-4 py-3 text-sm text-black/40">
+                          Ничего не найдено
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
