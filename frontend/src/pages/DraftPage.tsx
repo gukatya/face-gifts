@@ -382,7 +382,7 @@ export default function DraftPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 flex-wrap justify-start sm:justify-end sm:shrink-0">
+        <div className="flex gap-2 flex-wrap">
           {previousSets && (
             <button
               className="btn-secondary text-sm"
