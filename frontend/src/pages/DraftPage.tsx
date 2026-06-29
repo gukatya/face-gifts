@@ -357,7 +357,7 @@ export default function DraftPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-6">
         <div>
           <Link to="/" className="text-xs tracking-widest uppercase text-luxe-grey-mid hover:text-black/60 mb-2 inline-block transition-colors">
             ← Все мероприятия
@@ -426,18 +426,7 @@ export default function DraftPage() {
             </button>
           )}
 
-          {/* Approve / unapprove — admin only */}
-          {role === "admin" && event.status === "pending" && sets.length > 0 && (
-            <button
-              className="btn-primary text-sm flex items-center gap-1.5"
-              onClick={handleApprove}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Утвердить
-            </button>
-          )}
+          {/* Approve happens from the banner below — keep only unapprove here */}
           {role === "admin" && event.status === "approved" && (
             <button
               className="btn-secondary text-sm text-black/40"
@@ -595,9 +584,13 @@ export default function DraftPage() {
             const displayItems = sortItems(currentItems);
             const displayTotal = currentItems.reduce((s, i) => s + i.price * i.qty, 0);
             const isAddingToThis = addSetId === gs.id;
+            const dropdownOpenHere = showDropdown && isAddingToThis;
 
             return (
-              <div key={gs.id} className={`card p-0 overflow-visible ${dirty ? "ring-2 ring-black/15" : ""}`}>
+              // backdrop-filter on .card creates its own stacking context, so a plain
+              // z-index on the dropdown can't escape above the next sibling card —
+              // raise the whole card's stacking order while its dropdown is open
+              <div key={gs.id} className={`card p-0 overflow-visible ${dirty ? "ring-2 ring-black/15" : ""} ${dropdownOpenHere ? "relative z-20" : ""}`}>
                 {/* Row header */}
                 <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 transition-colors rounded-2xl">
                   <button
