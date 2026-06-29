@@ -597,7 +597,7 @@ export default function DraftPage() {
             const isAddingToThis = addSetId === gs.id;
 
             return (
-              <div key={gs.id} className={`card p-0 ${dirty ? "overflow-visible ring-2 ring-black/15" : "overflow-hidden"}`}>
+              <div key={gs.id} className={`card p-0 overflow-visible ${dirty ? "ring-2 ring-black/15" : ""}`}>
                 {/* Row header */}
                 <div className="w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 transition-colors rounded-2xl">
                   <button
@@ -697,10 +697,10 @@ export default function DraftPage() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-black/50">
+                          <td colSpan={4} className="pt-2 text-right text-sm font-semibold text-black/50 whitespace-nowrap">
                             Итого набор:
                           </td>
-                          <td className="pt-2 text-right font-black text-luxe-black pl-1">
+                          <td colSpan={2} className="pt-2 text-right font-black text-luxe-black whitespace-nowrap">
                             {displayTotal.toLocaleString("ru-RU")} ₽
                           </td>
                         </tr>
