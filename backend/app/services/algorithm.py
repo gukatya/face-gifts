@@ -6,6 +6,7 @@ EU warehouse logic is intentionally disabled — it will be implemented as a sep
 algorithm in a future iteration.
 """
 from typing import Optional, List
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from ..models import Pigment, Consumable
 from .countries import fitzpatrick_overlaps
@@ -216,6 +217,7 @@ def select_brow_pigments(
         Pigment.line.in_(lines),
         Pigment.is_corrector == False,
         Pigment.is_mini == False,
+        or_(Pigment.volume_ml == None, Pigment.volume_ml != "12мл"),  # noqa: E711
     )
 
     all_candidates = query.all()
@@ -242,6 +244,7 @@ def select_brow_pigments(
             Pigment.line.in_(lines),
             Pigment.is_corrector == True,
             Pigment.is_mini == False,
+            or_(Pigment.volume_ml == None, Pigment.volume_ml != "12мл"),  # noqa: E711
         )
         correctors = [p for p in corr_query.all()
                       if fitzpatrick_overlaps(p.fitzpatrick, fitz_min, fitz_max)]
@@ -263,6 +266,7 @@ def select_lip_pigments(
         Pigment.zone == "Губы",
         Pigment.is_corrector == False,
         Pigment.is_mini == False,
+        or_(Pigment.volume_ml == None, Pigment.volume_ml != "12мл"),  # noqa: E711
     )
 
     all_candidates = query.all()

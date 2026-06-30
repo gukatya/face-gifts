@@ -20,6 +20,7 @@ _MIGRATIONS = [
     "ALTER TABLE events ADD COLUMN gifts_sent BOOLEAN DEFAULT 0",
     "ALTER TABLE events ADD COLUMN shipped_date VARCHAR(20)",
     "ALTER TABLE pigments ADD COLUMN is_mini BOOLEAN DEFAULT 0",
+    "ALTER TABLE pigments ADD COLUMN volume_ml VARCHAR(10)",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:

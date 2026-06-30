@@ -25,6 +25,7 @@ class Pigment(Base):
     recommended_mixes = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     is_mini = Column(Boolean, default=False)  # мини-объём того же оттенка (замена набору сэмплов)
+    volume_ml = Column(String(10), nullable=True)  # "6мл" / "12мл" — для линий с двумя объёмами
 
 
 class Consumable(Base):
