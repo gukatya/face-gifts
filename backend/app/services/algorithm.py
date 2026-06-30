@@ -295,28 +295,6 @@ def select_eye_pigments(db: Session, count: int, warehouse: str = "Россия"
     return result[:count]
 
 
-def _budget_to_level(budget: int) -> str:
-    """Map per-gift budget to level name."""
-    if budget >= 6000:
-        return "Хороший"
-    if budget >= 3000:
-        return "Нормальный"
-    return "Скромный"
-
-
-def _budget_to_shade_count(budget: int) -> int:
-    """
-    Total number of color shades for the gift based on budget.
-    A sample set counts as 3 shades (3 mini pigments in 1 kit).
-    """
-    if budget >= 7000: return 6   # sample(3) + 3 full pigs
-    if budget >= 5000: return 5   # sample(3) + 2 full pigs
-    if budget >= 3500: return 4   # sample(3) + 1 full pig
-    if budget >= 2500: return 3   # sample(3) only
-    if budget >= 1800: return 2   # 2 full pigs (sample too expensive)
-    return 1
-
-
 # Фиксированное количество оттенков по месту.
 # Сэмпл = 3 оттенка. Полноразмерных пигментов = shade_count - 3 (если есть сэмпл).
 PLACE_SHADE_COUNT: dict = {
@@ -328,17 +306,6 @@ PLACE_SHADE_COUNT: dict = {
     "гран-при": 6,   # GP — отдельная логика в draft.py
 }
 
-# Уровень расходников по месту (фиксированный, не зависит от суммы бюджета).
-PLACE_LEVEL: dict = {
-    "1":        "Хороший",
-    "2":        "Нормальный",
-    "3":        "Скромный",
-    "розыгрыш": "Нормальный",
-    "участник": "Скромный",
-    "гран-при": "Хороший",
-}
-
-
 # Обязательные расходники — входят в КАЖДЫЙ подарок независимо от уровня.
 # Формат: (название, кол-во).
 MANDATORY_CONSUMABLES = [
@@ -346,22 +313,31 @@ MANDATORY_CONSUMABLES = [
     ("Заживляющий гель саше 5г (1 шт)",            5),   # 19р × 5 шт
 ]
 
-# Сколько ДОПОЛНИТЕЛЬНЫХ высокоприоритетных расходников добавляем по уровню.
-# Обязательные 2 позиции уже включены; здесь — только сверх них.
-# Ограничение: не более 1 позиции из одной категории (чтобы 3 кисти не вытесняли Вторичку).
-LEVEL_EXTRA_CONSUMABLES: dict = {
-    "Скромный":   0,
-    "Нормальный": 2,
-    "Хороший":    4,  # Фотомасло мини + Сатин + Кисть + Вторичка мини
-}
+# Допуск на небольшое превышение бюджета — последняя добавленная позиция (пигмент
+# или расходник) может слегка вылезти за рамки. Лучше, чем останавливаться сильно
+# не доходя до выделенной суммы.
+BUDGET_OVERSHOOT = 1.15
 
 
-def _get_fixed_consumables(db: Session, level: str, zone: str = "") -> list:
+def _mandatory_consumables_total(db: Session) -> float:
+    from ..models import Consumable as C
+    total = 0.0
+    for name, qty in MANDATORY_CONSUMABLES:
+        obj = db.query(C).filter(C.name == name).first()
+        if obj:
+            total += (obj.price_ru or 0) * qty
+    return total
+
+
+def _get_fixed_consumables(db: Session, leftover_budget: Optional[float], zone: str = "") -> list:
     """
     Возвращает расходники для подарка в виде списка (Consumable, qty):
-    1. Всегда: салфетки (10шт×1) + саше 5г (5шт) — обязательный минимум.
-    2. Динамически: ещё N высокоприоритетных расходников (gift_priority='высокий'),
-       с учётом зоны номинации.
+    1. Всегда: салфетки (10шт×1) + саше 5г (5шт) — обязательный минимум
+       (их стоимость уже зарезервирована заранее, в leftover_budget не входит).
+    2. Дополнительно: высокоприоритетные расходники (gift_priority='высокий'),
+       добавляются по одному, ПОКА ХВАТАЕТ leftover_budget (с допуском
+       BUDGET_OVERSHOOT на последнюю позицию). leftover_budget=None — без
+       ограничения (добавляем до 4 позиций, как раньше при максимальном уровне).
        Не более 1 позиции из одной категории.
        Категории «Сеты» и «Сэмплы» исключаются.
 
@@ -383,46 +359,52 @@ def _get_fixed_consumables(db: Session, level: str, zone: str = "") -> list:
             result.append((obj, qty))
             mandatory_ids.add(obj.id)
 
-    # --- 2. Дополнительные высокоприоритетные ---
-    extra_count = LEVEL_EXTRA_CONSUMABLES.get(level, 1)
-    if extra_count > 0:
-        EXCLUDED_CATEGORIES = {"Сеты", "Сэмплы"}
-        zone_lower = zone.lower()
+    # --- 2. Дополнительные высокоприоритетные — жадно, в рамках leftover_budget ---
+    EXCLUDED_CATEGORIES = {"Сеты", "Сэмплы"}
+    zone_lower = zone.lower()
 
-        def _zone_ok(c: C) -> bool:
-            cz = (c.zone or "").lower()
-            if not cz:
-                return True
-            if "все" in cz:
-                return True
-            return zone_lower in cz
+    def _zone_ok(c: C) -> bool:
+        cz = (c.zone or "").lower()
+        if not cz:
+            return True
+        if "все" in cz:
+            return True
+        return zone_lower in cz
 
-        high = db.query(C).filter(C.gift_priority == "высокий").all()
-        high = [
-            c for c in high
-            if c.id not in mandatory_ids
-            and (c.category or "") not in EXCLUDED_CATEGORIES
-            and _zone_ok(c)
-        ]
-        # Вторичка (Анестезия) — первой, затем по цене (дешёвые вперёд)
-        high.sort(key=lambda c: (
-            0 if (c.category or "") == "Анестезия" else 1,
-            c.price_ru or 9999,
-        ))
+    high = db.query(C).filter(C.gift_priority == "высокий").all()
+    high = [
+        c for c in high
+        if c.id not in mandatory_ids
+        and (c.category or "") not in EXCLUDED_CATEGORIES
+        and _zone_ok(c)
+    ]
+    # Вторичка (Анестезия) — первой, затем по цене (дешёвые вперёд)
+    high.sort(key=lambda c: (
+        0 if (c.category or "") == "Анестезия" else 1,
+        c.price_ru or 9999,
+    ))
 
-        # Не более 1 позиции из одной категории
-        seen_cats: set = set()
-        selected: list = []
-        for c in high:
-            cat = c.category or ""
-            if cat in seen_cats:
-                continue
-            seen_cats.add(cat)
-            selected.append(c)
-            if len(selected) >= extra_count:
-                break
+    budget_cap = leftover_budget * BUDGET_OVERSHOOT if leftover_budget is not None else None
 
-        result.extend((c, 1) for c in selected)
+    # Не более 1 позиции из одной категории; добавляем, пока хватает бюджета
+    seen_cats: set = set()
+    selected: list = []
+    spent = 0.0
+    MAX_EXTRAS = 4
+    for c in high:
+        if len(selected) >= MAX_EXTRAS:
+            break
+        cat = c.category or ""
+        if cat in seen_cats:
+            continue
+        price = c.price_ru or 0
+        if budget_cap is not None and spent + price > budget_cap:
+            continue
+        seen_cats.add(cat)
+        selected.append(c)
+        spent += price
+
+    result.extend((c, 1) for c in selected)
 
     return result
 
@@ -443,13 +425,13 @@ def select_items_for_budget(
     """
     Подбор подарка по месту/бюджету.
 
-    Принципы:
-    - Количество оттенков фиксировано по МЕСТУ (place), одинаково для всех
-      номинаций на одном месте (независимо от стоимости пигментов).
-    - Сэмпл = 3 мини-оттенка. Добавляется первым, если подходит по линии.
-    - Полноразмерные пигменты добирают оставшееся число оттенков.
-      Оттенки из сэмпла не повторяются.
-    - Расходники — фиксированный набор по месту, одинаковый для всех.
+    Единая жадная логика для ВСЕХ зон (Брови/Губы/Веки/смешанные): наполняем
+    подарок «оттенками» (сэмпл — если уместен — считается за 3 оттенка одним
+    слотом, затем полноразмерные пигменты по одному) и расходниками, пока
+    хватает бюджета, выделенного на это место (place), с потолком по
+    количеству оттенков из PLACE_SHADE_COUNT. Бюджет один и тот же для всех
+    номинаций на одном месте (см. compute_place_budgets в draft.py) — значит
+    одинаковые места у разных номинаций наполняются сопоставимо.
 
     Returns {"pigments": [...], "consumables": [...], "samples": [...]}
     """
@@ -468,28 +450,9 @@ def select_items_for_budget(
         "Organic brows":    "гибрид",
     }
 
-    # Место передано явно — используем place как МАКСИМУМ; бюджет может снизить качество
-    if place and place in PLACE_SHADE_COUNT:
-        default_level = PLACE_LEVEL.get(place, "Нормальный")
-        default_shades = PLACE_SHADE_COUNT[place]
-        if budget is not None:
-            budget_level = _budget_to_level(budget)
-            budget_shades = _budget_to_shade_count(budget)
-            _lvl_order = {"Скромный": 0, "Нормальный": 1, "Хороший": 2}
-            # Если бюджет подразумевает более низкий уровень — используем его
-            if _lvl_order.get(budget_level, 1) < _lvl_order.get(default_level, 1):
-                level = budget_level
-            else:
-                level = default_level
-            # Оттенков берём не больше, чем позволяет место И бюджет
-            shade_count = min(default_shades, max(1, budget_shades))
-        else:
-            level = default_level
-            shade_count = default_shades
-    else:
-        # Запасной путь (без явного места): бюджетная логика
-        level = _budget_to_level(budget)
-        shade_count = _budget_to_shade_count(budget)
+    is_russia_region = "Россия" in region or "СНГ" in region
+    # Потолок по количеству оттенков для этого места; без явного места — мягкий потолок.
+    place_cap = PLACE_SHADE_COUNT.get(place, 6) if place else 6
 
     # --- 1. Пигменты-кандидаты (сначала, чтобы знать реальную линию) ---
     if zone == "Брови":
@@ -503,23 +466,7 @@ def select_items_for_budget(
             warehouse=warehouse, fitz_min=fitz_min, fitz_max=fitz_max, variant=variant,
         )
     elif zone == "Веки":
-        # У Века нет сэмпла (в отличие от Брови/Губы, которым в draft.py добавляется
-        # бесплатный сэмпл-бонус сверх бюджета) — каждый оттенок здесь полноразмерный
-        # пигмент по фиксированной цене. Пороги _budget_to_shade_count откалиброваны
-        # из расчёта дешёвого сэмпла (~833₽/оттенок) и для Века систематически дают
-        # заниженное количество. Считаем оттенки напрямую от реальной цены пигмента,
-        # чтобы бюджет расходовался по назначению, а не упирался в пол в 1 оттенок.
-        eye_count = shade_count
-        if budget is not None:
-            sample_eye = db.query(Pigment).filter(Pigment.zone == "Веки").first()
-            unit_price = (sample_eye.price_ru if sample_eye else None) or 1290
-            cap = PLACE_SHADE_COUNT.get(place, shade_count) if place else shade_count
-            eye_count = max(1, min(cap, int(budget // unit_price)))
-        return {
-            "pigments": select_eye_pigments(db, count=eye_count, warehouse=warehouse),
-            "consumables": _get_fixed_consumables(db, level),  # list of (Consumable, qty)
-            "samples": [],
-        }
+        candidates = select_eye_pigments(db, count=5, warehouse=warehouse)
     else:
         lip_c = select_lip_pigments(db, region, count=6,
                                     warehouse=warehouse, fitz_min=fitz_min, fitz_max=fitz_max,
@@ -529,12 +476,11 @@ def select_items_for_budget(
                                       variant=variant)
         candidates = lip_c + brow_c
 
-    # --- 2. Сэмпл — подбираем по РЕАЛЬНОЙ линии пигментов, а не по декларированной ---
-    samples: list = []
+    # --- 2. Кандидат на сэмпл — подбираем по РЕАЛЬНОЙ линии пигментов ---
+    sample_obj = None
     excluded_shades: set = set()
 
-    is_russia_region = "Россия" in region or "СНГ" in region
-    if include_samples and is_russia_region and zone in ("Брови", "Губы") and shade_count >= 3:
+    if include_samples and is_russia_region and zone in ("Брови", "Губы"):
         sample_q = db.query(ConsumableModel).filter(ConsumableModel.category == "Сэмплы")
         if zone == "Губы":
             all_s = [s for s in sample_q.all() if "губы" in (s.name or "").lower()]
@@ -559,34 +505,55 @@ def select_items_for_budget(
             else:
                 all_s = brow_all
 
-        for s in sorted(all_s, key=lambda x: x.price_ru or 9999):
-            samples.append(s)
+        cheapest = sorted(all_s, key=lambda x: x.price_ru or 9999)
+        if cheapest:
+            sample_obj = cheapest[0]
             for kw, shades in SAMPLE_SHADES.items():
-                if kw in (s.name or "").lower():
+                if kw in (sample_obj.name or "").lower():
                     excluded_shades |= shades
                     break
-            break
 
-    # --- 3. Полноразмерные пигменты (исключаем оттенки из сэмпла) ---
-    if samples:
-        # Сэмпл даёт 3 мини-оттенка — остальное добираем полноразмерными
-        full_pig_count = shade_count - 3
-    elif is_russia_region and zone not in ("Брови", "Губы"):
-        # Россия/СНГ, но зона не предполагает сэмплов (Латекс, Ареола и т.п.).
-        # Уменьшаем кол-во пигментов на 1, чтобы стоимость была сопоставима
-        # с наборами, где часть «слотов» занимает сэмпл.
-        full_pig_count = max(1, shade_count - 1)
-    else:
-        full_pig_count = shade_count
     if excluded_shades:
         candidates = [p for p in candidates
                       if (p.name or "").lower() not in excluded_shades]
 
     # Вариант: сдвигаем пул кандидатов, чтобы появились другие пигменты.
-    # Сдвиг = variant позиции, циклически по доступному пространству.
-    if variant > 0 and len(candidates) >= full_pig_count:
+    if variant > 0 and candidates:
         shift = variant % max(1, len(candidates))
         candidates = candidates[shift:] + candidates[:shift]
+
+    # --- 3. Жадно наполняем оттенки в рамках бюджета на это место ---
+    mandatory_total = _mandatory_consumables_total(db)
+    remaining = max(0.0, (budget or 0) - mandatory_total) if budget is not None else None
+    budget_cap = remaining * BUDGET_OVERSHOOT if remaining is not None else None
+
+    samples: list = []
+    spent = 0.0
+    shade_count = 0
+
+    if sample_obj is not None and shade_count < place_cap:
+        price = sample_obj.price_ru or 0
+        if budget_cap is None or spent + price <= budget_cap:
+            samples.append(sample_obj)
+            spent += price
+            shade_count += 3
+
+    full_pig_count = 0
+    i = 0
+    while shade_count < place_cap and i < len(candidates):
+        price = candidates[i].price_ru or 0
+        if budget_cap is not None and spent + price > budget_cap:
+            i += 1
+            continue
+        spent += price
+        shade_count += 1
+        full_pig_count += 1
+        i += 1
+
+    # Подарок не должен быть пустым, если кандидаты вообще есть
+    if full_pig_count == 0 and not samples and candidates:
+        full_pig_count = 1
+        spent += candidates[0].price_ru or 0
 
     # Minerals sample → предпочтительные доп. пигменты из линии Минералы
     # (не входящие в сэмпл). При variant > 0 — другие позиции из пула.
@@ -628,8 +595,9 @@ def select_items_for_budget(
     else:
         pigments = candidates[:full_pig_count]
 
-    # --- 4. Расходники по уровню — список (Consumable, qty) ---
-    consumables = _get_fixed_consumables(db, level, zone)
+    # --- 4. Расходники — жадно, в рамках оставшегося после пигментов бюджета ---
+    leftover = max(0.0, remaining - spent) if remaining is not None else None
+    consumables = _get_fixed_consumables(db, leftover, zone)
 
     return {"pigments": pigments, "consumables": consumables, "samples": samples}
 
