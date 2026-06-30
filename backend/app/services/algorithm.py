@@ -503,8 +503,20 @@ def select_items_for_budget(
             warehouse=warehouse, fitz_min=fitz_min, fitz_max=fitz_max, variant=variant,
         )
     elif zone == "Веки":
+        # У Века нет сэмпла (в отличие от Брови/Губы, которым в draft.py добавляется
+        # бесплатный сэмпл-бонус сверх бюджета) — каждый оттенок здесь полноразмерный
+        # пигмент по фиксированной цене. Пороги _budget_to_shade_count откалиброваны
+        # из расчёта дешёвого сэмпла (~833₽/оттенок) и для Века систематически дают
+        # заниженное количество. Считаем оттенки напрямую от реальной цены пигмента,
+        # чтобы бюджет расходовался по назначению, а не упирался в пол в 1 оттенок.
+        eye_count = shade_count
+        if budget is not None:
+            sample_eye = db.query(Pigment).filter(Pigment.zone == "Веки").first()
+            unit_price = (sample_eye.price_ru if sample_eye else None) or 1290
+            cap = PLACE_SHADE_COUNT.get(place, shade_count) if place else shade_count
+            eye_count = max(1, min(cap, int(budget // unit_price)))
         return {
-            "pigments": select_eye_pigments(db, count=shade_count, warehouse=warehouse),
+            "pigments": select_eye_pigments(db, count=eye_count, warehouse=warehouse),
             "consumables": _get_fixed_consumables(db, level),  # list of (Consumable, qty)
             "samples": [],
         }
