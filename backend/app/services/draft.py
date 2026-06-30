@@ -277,13 +277,11 @@ def _build_set_for_place(
         items.extend([_item_from_consumable(c, qty) for c, qty in result["consumables"]])
         items.extend([_item_from_sample(s) for s in result["samples"]])
 
-        # Russia sample bonus — только если сэмпл ещё не добавлен алгоритмом
-        if ("Россия" in region or "СНГ" in region) and not is_giveaway:
-            has_sample = any(i.get("sku_type") == "sample" for i in items)
-            if not has_sample:
-                sample = _get_russia_sample(db, nomination_name, items)
-                if sample:
-                    items.append(_item_from_sample(sample))
+        # Сэмпл уже учтён внутри select_items_for_budget (добавляется, только если
+        # бюджет реально на него хватает — shade_count >= 3). Безусловного бонуса
+        # сверх бюджета здесь больше нет: иначе подарки с тонким бюджетом (3-е место,
+        # розыгрыш) превышали бы заданные рамки, а зона "Веки" (без сэмпла) выглядела
+        # бы обделённой на их фоне — все номинации должны жить по одной бюджетной логике.
 
         total = sum(i["price"] * i["qty"] for i in items)
         return {"items": items, "total_price": total}
