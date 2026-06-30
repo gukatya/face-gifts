@@ -215,6 +215,7 @@ def select_brow_pigments(
         Pigment.zone == "Брови",
         Pigment.line.in_(lines),
         Pigment.is_corrector == False,
+        Pigment.is_mini == False,
     )
 
     all_candidates = query.all()
@@ -240,6 +241,7 @@ def select_brow_pigments(
             Pigment.zone == "Брови",
             Pigment.line.in_(lines),
             Pigment.is_corrector == True,
+            Pigment.is_mini == False,
         )
         correctors = [p for p in corr_query.all()
                       if fitzpatrick_overlaps(p.fitzpatrick, fitz_min, fitz_max)]
@@ -260,6 +262,7 @@ def select_lip_pigments(
     query = db.query(Pigment).filter(
         Pigment.zone == "Губы",
         Pigment.is_corrector == False,
+        Pigment.is_mini == False,
     )
 
     all_candidates = query.all()
@@ -289,7 +292,7 @@ def select_eye_pigments(db: Session, count: int, warehouse: str = "Россия"
     for name in ordered_names:
         if len(result) >= count:
             break
-        p = db.query(Pigment).filter(Pigment.name == name).first()
+        p = db.query(Pigment).filter(Pigment.name == name, Pigment.is_mini == False).first()
         if p:
             result.append(p)
     return result[:count]
@@ -425,36 +428,24 @@ def select_items_for_budget(
     """
     Подбор подарка по месту/бюджету.
 
-    Единая жадная логика для ВСЕХ зон (Брови/Губы/Веки/смешанные): наполняем
-    подарок «оттенками» (сэмпл — если уместен — считается за 3 оттенка одним
-    слотом, затем полноразмерные пигменты по одному) и расходниками, пока
-    хватает бюджета, выделенного на это место (place), с потолком по
-    количеству оттенков из PLACE_SHADE_COUNT. Бюджет один и тот же для всех
-    номинаций на одном месте (см. compute_place_budgets в draft.py) — значит
-    одинаковые места у разных номинаций наполняются сопоставимо.
+    Единая жадная логика для ВСЕХ зон (Брови/Губы/Веки/смешанные): идём по
+    кандидатам-оттенкам в порядке приоритета и для каждого пробуем сначала
+    добавить ПОЛНОРАЗМЕРНЫЙ пигмент; если бюджет не тянет — добавляем тот же
+    оттенок МИНИ-версией (дешевле, см. Pigment.is_mini в каталоге — замена
+    бумажным наборам сэмплов отдельными позициями). Это именно то, для чего
+    раньше служили наборы сэмплов: растянуть бюджет на большее число разных
+    оттенков вместо одного дорогого набора. Останавливаемся по бюджету места
+    (place) или по потолку числа оттенков из PLACE_SHADE_COUNT.
 
-    Returns {"pigments": [...], "consumables": [...], "samples": [...]}
+    Returns {"pigments": [...], "consumables": [...], "samples": []}
+    (ключ "samples" сохранён для обратной совместимости вызовов — мини-пигменты
+    теперь идут в "pigments" вместе с полноразмерными)
     """
-    from ..models import Consumable as ConsumableModel
-
-    # Оттенки в каждом наборе сэмплов (для исключения дублей из полноразмерных)
-    SAMPLE_SHADES: dict = {
-        "minerals": {"голд", "медиум", "дарк"},
-        "гибрид":   {"орех", "джонни", "эспрессо"},
-        "губы":     {"сахар", "джоли", "меган"},
-    }
-    # Линия номинации → ключевое слово в названии сэмпла
-    LINE_SAMPLE_KW: dict = {
-        "Минералы":         "minerals",
-        "Базовая (гибрид)": "гибрид",
-        "Organic brows":    "гибрид",
-    }
-
     is_russia_region = "Россия" in region or "СНГ" in region
     # Потолок по количеству оттенков для этого места; без явного места — мягкий потолок.
     place_cap = PLACE_SHADE_COUNT.get(place, 6) if place else 6
 
-    # --- 1. Пигменты-кандидаты (сначала, чтобы знать реальную линию) ---
+    # --- 1. Пигменты-кандидаты (полноразмерные, по приоритету региона/линии) ---
     if zone == "Брови":
         candidates = select_brow_pigments(
             db, nomination_name, region, count=12,
@@ -476,138 +467,67 @@ def select_items_for_budget(
                                       variant=variant)
         candidates = lip_c + brow_c
 
-    # --- 2. Кандидат на сэмпл — подбираем по РЕАЛЬНОЙ линии пигментов ---
-    sample_obj = None
-    excluded_shades: set = set()
-
-    if include_samples and is_russia_region and zone in ("Брови", "Губы"):
-        sample_q = db.query(ConsumableModel).filter(ConsumableModel.category == "Сэмплы")
-        if zone == "Губы":
-            all_s = [s for s in sample_q.all() if "губы" in (s.name or "").lower()]
-        else:
-            # Определяем ключевое слово по реальным линиям отобранных пигментов
-            actual_lines = {p.line for p in candidates[:3] if p.line}
-            sample_kw = next(
-                (LINE_SAMPLE_KW[l] for l in actual_lines if l in LINE_SAMPLE_KW), None
-            )
-            # Запасной вариант — по линиям номинации
-            if not sample_kw:
-                nom_lines = NOMINATION_LINES.get(nomination_name, [])
-                sample_kw = next(
-                    (LINE_SAMPLE_KW[l] for l in nom_lines if l in LINE_SAMPLE_KW), None
-                )
-            brow_all = [s for s in sample_q.all()
-                        if "губы" not in (s.name or "").lower()]
-            if sample_kw:
-                matched = [s for s in brow_all
-                           if sample_kw.lower() in (s.name or "").lower()]
-                all_s = matched if matched else brow_all
-            else:
-                all_s = brow_all
-
-        cheapest = sorted(all_s, key=lambda x: x.price_ru or 9999)
-        if cheapest:
-            sample_obj = cheapest[0]
-            for kw, shades in SAMPLE_SHADES.items():
-                if kw in (sample_obj.name or "").lower():
-                    excluded_shades |= shades
-                    break
-
-    if excluded_shades:
-        candidates = [p for p in candidates
-                      if (p.name or "").lower() not in excluded_shades]
-
     # Вариант: сдвигаем пул кандидатов, чтобы появились другие пигменты.
     if variant > 0 and candidates:
         shift = variant % max(1, len(candidates))
         candidates = candidates[shift:] + candidates[:shift]
+
+    # --- 2. Мини-версии тех же оттенков (если есть в каталоге для региона РФ/СНГ) ---
+    minis_by_name: dict = {}
+    if include_samples and is_russia_region:
+        names = [p.name for p in candidates if p.name]
+        if names:
+            mini_rows = db.query(Pigment).filter(
+                Pigment.name.in_(names), Pigment.is_mini == True,  # noqa: E712
+            ).all()
+            minis_by_name = {p.name: p for p in mini_rows}
 
     # --- 3. Жадно наполняем оттенки в рамках бюджета на это место ---
     mandatory_total = _mandatory_consumables_total(db)
     remaining = max(0.0, (budget or 0) - mandatory_total) if budget is not None else None
     budget_cap = remaining * BUDGET_OVERSHOOT if remaining is not None else None
 
-    samples: list = []
+    pigments: list = []
     spent = 0.0
     shade_count = 0
 
-    if sample_obj is not None and shade_count < place_cap:
-        price = sample_obj.price_ru or 0
-        if budget_cap is None or spent + price <= budget_cap:
-            samples.append(sample_obj)
-            spent += price
-            shade_count += 3
-
-    full_pig_count = 0
-    i = 0
-    while shade_count < place_cap and i < len(candidates):
-        price = candidates[i].price_ru or 0
-        if budget_cap is not None and spent + price > budget_cap:
-            i += 1
+    for cand in candidates:
+        if shade_count >= place_cap:
+            break
+        full_price = cand.price_ru or 0
+        if budget_cap is None or spent + full_price <= budget_cap:
+            pigments.append(cand)
+            spent += full_price
+            shade_count += 1
             continue
-        spent += price
-        shade_count += 1
-        full_pig_count += 1
-        i += 1
+        mini = minis_by_name.get(cand.name)
+        if mini is not None and (budget_cap is None or spent + (mini.price_ru or 0) <= budget_cap):
+            pigments.append(mini)
+            spent += mini.price_ru or 0
+            shade_count += 1
 
     # Подарок без единого пигмента — не вариант, даже если бюджет совсем
-    # тонкий: если ни один кандидат не влез в рамки бюджета, всё равно
-    # добавляем САМЫЙ ДЕШЁВЫЙ доступный (а не первый по приоритету) — это
-    # минимизирует перерасход. Применяется одинаково для всех зон/мест, так
-    # что при совсем тонком бюджете подарки на разных местах могут совпасть
-    # по цене (это честно — бюджет не позволяет различие), но не инвертируются.
-    if full_pig_count == 0 and not samples and candidates:
-        cheapest_idx = min(range(len(candidates)), key=lambda j: candidates[j].price_ru or 0)
-        if cheapest_idx != 0:
-            candidates = [candidates[cheapest_idx]] + candidates[:cheapest_idx] + candidates[cheapest_idx + 1:]
-        full_pig_count = 1
-        spent += candidates[0].price_ru or 0
-
-    # Minerals sample → предпочтительные доп. пигменты из линии Минералы
-    # (не входящие в сэмпл). При variant > 0 — другие позиции из пула.
-    is_minerals_sample = bool(
-        samples and "minerals" in (samples[0].name or "").lower()
-    )
-    if is_minerals_sample and full_pig_count > 0:
-        # Собираем все Минералы, которых нет в сэмпле
-        minerals_pool = db.query(Pigment).filter(
-            Pigment.line == "Минералы",
-        ).all()
-        minerals_pool = [
-            p for p in minerals_pool
-            if (p.name or "").lower() not in excluded_shades
-        ]
-        # Базовый порядок: Ворм → Блэк Браун → остальные по имени
-        minerals_pool.sort(key=lambda p: (
-            0 if p.name == "Ворм" else (1 if p.name == "Блэк Браун" else 2),
-            p.name or "",
-        ))
-        # Применяем вариант: сдвиг по пулу
-        if variant > 0 and len(minerals_pool) >= full_pig_count:
-            shift = variant % max(1, len(minerals_pool))
-            minerals_pool = minerals_pool[shift:] + minerals_pool[:shift]
-
-        if len(minerals_pool) >= full_pig_count:
-            pigments = minerals_pool[:full_pig_count]
-        else:
-            # Пула не хватает — добираем из продвигаемых губных
-            needed = full_pig_count - len(minerals_pool)
-            promoted_ids = _get_promoted_ids(db, region)
-            all_lips = select_lip_pigments(
-                db, region, needed + 4, warehouse, fitz_min, fitz_max
-            )
-            promoted_lips = [p for p in all_lips if p.id in promoted_ids]
-            if not promoted_lips:
-                promoted_lips = all_lips
-            pigments = minerals_pool + promoted_lips[:needed]
-    else:
-        pigments = candidates[:full_pig_count]
+    # тонкий: если ничего не влезло, берём самый дешёвый доступный вариант
+    # (мини, если есть, иначе полный) — даже с небольшим превышением бюджета.
+    # Применяется одинаково для всех зон/мест: при совсем тонком бюджете
+    # подарки на разных местах могут совпасть по цене (бюджет не позволяет
+    # различие), но порядок никогда не инвертируется.
+    if not pigments and candidates:
+        options = []
+        for cand in candidates:
+            options.append((cand.price_ru or 0, cand))
+            mini = minis_by_name.get(cand.name)
+            if mini is not None:
+                options.append((mini.price_ru or 0, mini))
+        price, obj = min(options, key=lambda o: o[0])
+        pigments.append(obj)
+        spent += price
 
     # --- 4. Расходники — жадно, в рамках оставшегося после пигментов бюджета ---
     leftover = max(0.0, remaining - spent) if remaining is not None else None
     consumables = _get_fixed_consumables(db, leftover, zone)
 
-    return {"pigments": pigments, "consumables": consumables, "samples": samples}
+    return {"pigments": pigments, "consumables": consumables, "samples": []}
 
 
 def select_consumables(

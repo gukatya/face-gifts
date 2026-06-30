@@ -24,6 +24,7 @@ class Pigment(Base):
     price_eu = Column(Float, nullable=True)
     recommended_mixes = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
+    is_mini = Column(Boolean, default=False)  # мини-объём того же оттенка (замена набору сэмплов)
 
 
 class Consumable(Base):

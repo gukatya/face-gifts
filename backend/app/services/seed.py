@@ -102,6 +102,59 @@ def seed_consumables(db: Session) -> int:
     return count
 
 
+# Оттенки, для которых заводим мини-версию (замена бумажным наборам сэмплов —
+# теперь каждый мини-оттенок отдельная позиция в каталоге, тот же цвет, другой
+# объём). Цена мини — производная от старых наборов сэмплов (2000-2500₽ за 3
+# оттенка ≈ 650-830₽/оттенок): 650₽ для линий с полным размером 1290₽,
+# 800₽ для линии Минералы (полный размер 1590₽).
+MINI_SHADE_NAMES = [
+    "Голд", "Медиум", "Дарк", "Орех", "Джонни", "Эспрессо",
+    "Сахар", "Джоли", "Меган", "Виктория", "Нуар", "Космос",
+    "Дженнифер", "Тайра", "Мокко", "Корица", "Карамель", "Шейк",
+    "Ворм", "Лайт", "Кирпичный", "Вишня",
+]
+MINI_PRICE_BY_LINE = {"Минералы": 800.0}
+MINI_PRICE_DEFAULT = 650.0
+MINI_NUMBER_BASE = 9000
+
+
+def seed_mini_pigments(db: Session) -> int:
+    count = 0
+    for offset, name in enumerate(MINI_SHADE_NAMES, start=1):
+        if db.query(Pigment).filter(Pigment.name == name, Pigment.is_mini == True).first():  # noqa: E712
+            continue
+        parent = (
+            db.query(Pigment)
+            .filter(Pigment.name == name, Pigment.is_mini == False)  # noqa: E712
+            .first()
+        )
+        if not parent:
+            continue
+        mini = Pigment(
+            number=MINI_NUMBER_BASE + offset,
+            zone=parent.zone,
+            line=parent.line,
+            name=parent.name,
+            temperature=parent.temperature,
+            saturation=parent.saturation,
+            role=parent.role,
+            fitzpatrick=parent.fitzpatrick,
+            is_corrector=parent.is_corrector,
+            geo_europe=parent.geo_europe,
+            geo_asia=parent.geo_asia,
+            priority=parent.priority,
+            price_ru=MINI_PRICE_BY_LINE.get(parent.line, MINI_PRICE_DEFAULT),
+            price_eu=None,
+            recommended_mixes=parent.recommended_mixes,
+            notes="Мини-объём (сэмпл)",
+            is_mini=True,
+        )
+        db.add(mini)
+        count += 1
+    db.commit()
+    return count
+
+
 def seed_nominations(db: Session) -> int:
     df = pd.read_excel(XLSX_PATH, sheet_name="Номинации", header=2)
     df = df.dropna(subset=[df.columns[0]])
@@ -131,6 +184,7 @@ def seed_nominations(db: Session) -> int:
 def seed_all(db: Session) -> dict:
     return {
         "pigments": seed_pigments(db),
+        "mini_pigments": seed_mini_pigments(db),
         "consumables": seed_consumables(db),
         "nominations": seed_nominations(db),
     }

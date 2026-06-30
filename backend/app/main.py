@@ -19,6 +19,7 @@ Base.metadata.create_all(bind=engine)
 _MIGRATIONS = [
     "ALTER TABLE events ADD COLUMN gifts_sent BOOLEAN DEFAULT 0",
     "ALTER TABLE events ADD COLUMN shipped_date VARCHAR(20)",
+    "ALTER TABLE pigments ADD COLUMN is_mini BOOLEAN DEFAULT 0",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:

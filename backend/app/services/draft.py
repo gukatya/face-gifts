@@ -120,10 +120,11 @@ def compute_place_budgets(
 
 
 def _item_from_pigment(p: Pigment, qty: int = 1) -> dict:
+    name = f"{p.name} (мини)" if getattr(p, "is_mini", False) else p.name
     return {
         "sku_type": "pigment",
         "sku_id": p.id,
-        "name": p.name,
+        "name": name,
         "line": p.line,
         "zone": p.zone,
         "qty": qty,
