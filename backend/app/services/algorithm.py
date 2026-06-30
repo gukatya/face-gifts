@@ -468,18 +468,6 @@ def select_items_for_budget(
         "Organic brows":    "гибрид",
     }
 
-    # Минимум оттенков для топовых мест — даже если на этого человека выпала
-    # тонкая доля общего бюджета (много номинаций/победителей размывают бюджет),
-    # призовое место не должно выглядеть пустым.
-    #
-    # ВАЖНО: сэмпл-набор (3 мини-оттенка) добавляется только при shade_count >= 3
-    # (см. ниже), а сэмпл часто ДЕШЕВЛЕ пары полноразмерных пигментов. Если 1-е
-    # место floor-ится ровно до 3 (сэмпл, 0 доп. пигментов), а 2-е — до 2 (без
-    # сэмпла, но 2 полноразмерных пигмента), 2-е место может выйти ДОРОЖЕ 1-го.
-    # Поэтому floor для 1-го места должен переходить порог сэмпла С ЗАПАСОМ
-    # (сэмпл + 1 доп. пигмент), а не падать точно на границу.
-    MIN_SHADES_BY_PLACE = {"1": 4, "2": 3}
-
     # Место передано явно — используем place как МАКСИМУМ; бюджет может снизить качество
     if place and place in PLACE_SHADE_COUNT:
         default_level = PLACE_LEVEL.get(place, "Нормальный")
@@ -495,10 +483,6 @@ def select_items_for_budget(
                 level = default_level
             # Оттенков берём не больше, чем позволяет место И бюджет
             shade_count = min(default_shades, max(1, budget_shades))
-            # ...но не ниже гарантированного минимума для этого места
-            min_floor = MIN_SHADES_BY_PLACE.get(place)
-            if min_floor:
-                shade_count = max(shade_count, min(min_floor, default_shades))
         else:
             level = default_level
             shade_count = default_shades
