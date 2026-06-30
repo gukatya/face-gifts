@@ -5,8 +5,10 @@ import type {
   RegionRankingOut,
   PigmentWithSettings,
   PigmentSettingsIn,
+  PigmentCreate,
   ConsumableWithSettings,
   ConsumableSettingsIn,
+  ConsumableCreate,
 } from "../types/catalog";
 
 // ---------------------------------------------------------------------------
@@ -37,6 +39,227 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(id);
   }, [value, delay]);
   return debounced;
+}
+
+// ---------------------------------------------------------------------------
+// Modals: add / edit pigment & consumable
+// ---------------------------------------------------------------------------
+
+const EMPTY_PIGMENT: PigmentCreate = {
+  zone: "Брови", line: "", name: "", temperature: "", saturation: "", role: "база",
+  fitzpatrick: "", is_corrector: false, priority: "стандарт", price_ru: undefined,
+  price_eu: undefined, is_mini: false, volume_ml: "",
+};
+
+function PigmentFormModal({
+  initial, onClose, onSaved,
+}: {
+  initial: (PigmentCreate & { id?: number }) | null;
+  onClose: () => void;
+  onSaved: (p: PigmentWithSettings) => void;
+}) {
+  const [form, setForm] = useState<PigmentCreate>(initial ?? EMPTY_PIGMENT);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const isEdit = !!initial?.id;
+
+  const set = <K extends keyof PigmentCreate>(key: K, value: PigmentCreate[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.zone.trim()) {
+      setError("Название и зона обязательны");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const payload: PigmentCreate = {
+        ...form,
+        line: form.line || null,
+        fitzpatrick: form.fitzpatrick || null,
+        volume_ml: form.volume_ml || null,
+        price_ru: form.price_ru != null && (form.price_ru as unknown as string) !== "" ? Number(form.price_ru) : null,
+        price_eu: form.price_eu != null && (form.price_eu as unknown as string) !== "" ? Number(form.price_eu) : null,
+      };
+      const result = isEdit
+        ? await api.catalog.updatePigment(initial!.id!, payload)
+        : await api.catalog.createPigment(payload);
+      onSaved(result);
+      onClose();
+    } catch {
+      setError("Не удалось сохранить");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-lg mb-4">{isEdit ? "Редактировать пигмент" : "Добавить пигмент"}</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm col-span-2">
+            <span className="label">Название</span>
+            <input className="input w-full" value={form.name} onChange={(e) => set("name", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Зона</span>
+            <select className="input w-full" value={form.zone} onChange={(e) => set("zone", e.target.value)}>
+              <option value="Брови">Брови</option>
+              <option value="Губы">Губы</option>
+              <option value="Веки">Веки</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="label">Линия</span>
+            <input className="input w-full" value={form.line ?? ""} onChange={(e) => set("line", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Роль</span>
+            <select className="input w-full" value={form.role ?? ""} onChange={(e) => set("role", e.target.value)}>
+              <option value="база">база</option>
+              <option value="модификатор">модификатор</option>
+              <option value="акцент">акцент</option>
+              <option value="корректор">корректор</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="label">Fitzpatrick</span>
+            <input className="input w-full" placeholder="напр. 2-4" value={form.fitzpatrick ?? ""} onChange={(e) => set("fitzpatrick", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Цена ₽</span>
+            <input type="number" className="input w-full" value={form.price_ru ?? ""} onChange={(e) => set("price_ru", e.target.value === "" ? undefined : Number(e.target.value))} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Цена €</span>
+            <input type="number" className="input w-full" value={form.price_eu ?? ""} onChange={(e) => set("price_eu", e.target.value === "" ? undefined : Number(e.target.value))} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Объём (если есть размерность)</span>
+            <select className="input w-full" value={form.volume_ml ?? ""} onChange={(e) => set("volume_ml", e.target.value)}>
+              <option value="">—</option>
+              <option value="6мл">6мл</option>
+              <option value="12мл">12мл</option>
+            </select>
+          </label>
+          <label className="text-sm flex items-center gap-2 mt-5">
+            <input type="checkbox" className="w-4 h-4 accent-black" checked={form.is_mini} onChange={(e) => set("is_mini", e.target.checked)} />
+            <span>Мини (сэмпл)</span>
+          </label>
+          <label className="text-sm flex items-center gap-2 mt-5">
+            <input type="checkbox" className="w-4 h-4 accent-black" checked={form.is_corrector} onChange={(e) => set("is_corrector", e.target.checked)} />
+            <span>Корректор</span>
+          </label>
+        </div>
+        {error && <div className="text-xs text-red-600 mt-3">{error}</div>}
+        <div className="flex gap-2 justify-end mt-5">
+          <button className="btn-secondary text-sm" onClick={onClose}>Отмена</button>
+          <button className="btn-primary text-sm" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Сохранение..." : "Сохранить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_CONSUMABLE: ConsumableCreate = {
+  name: "", category: "", zone: "Все зоны", price_ru: undefined, price_eu: undefined,
+  has_mini: false, gift_priority: "средний",
+};
+
+function ConsumableFormModal({
+  initial, onClose, onSaved,
+}: {
+  initial: (ConsumableCreate & { id?: number }) | null;
+  onClose: () => void;
+  onSaved: (c: ConsumableWithSettings) => void;
+}) {
+  const [form, setForm] = useState<ConsumableCreate>(initial ?? EMPTY_CONSUMABLE);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const isEdit = !!initial?.id;
+
+  const set = <K extends keyof ConsumableCreate>(key: K, value: ConsumableCreate[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      setError("Название обязательно");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const payload: ConsumableCreate = {
+        ...form,
+        category: form.category || null,
+        zone: form.zone || null,
+        price_ru: form.price_ru != null && (form.price_ru as unknown as string) !== "" ? Number(form.price_ru) : null,
+        price_eu: form.price_eu != null && (form.price_eu as unknown as string) !== "" ? Number(form.price_eu) : null,
+      };
+      const result = isEdit
+        ? await api.catalog.updateConsumable(initial!.id!, payload)
+        : await api.catalog.createConsumable(payload);
+      onSaved(result);
+      onClose();
+    } catch {
+      setError("Не удалось сохранить");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+      <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="font-semibold text-lg mb-4">{isEdit ? "Редактировать расходник" : "Добавить расходник"}</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm col-span-2">
+            <span className="label">Название</span>
+            <input className="input w-full" value={form.name} onChange={(e) => set("name", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Категория</span>
+            <input className="input w-full" value={form.category ?? ""} onChange={(e) => set("category", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Зона</span>
+            <input className="input w-full" placeholder="Все зоны / Брови / Губы" value={form.zone ?? ""} onChange={(e) => set("zone", e.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Цена ₽</span>
+            <input type="number" className="input w-full" value={form.price_ru ?? ""} onChange={(e) => set("price_ru", e.target.value === "" ? undefined : Number(e.target.value))} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Цена €</span>
+            <input type="number" className="input w-full" value={form.price_eu ?? ""} onChange={(e) => set("price_eu", e.target.value === "" ? undefined : Number(e.target.value))} />
+          </label>
+          <label className="text-sm">
+            <span className="label">Приоритет в подарке</span>
+            <select className="input w-full" value={form.gift_priority ?? ""} onChange={(e) => set("gift_priority", e.target.value)}>
+              <option value="высокий">высокий</option>
+              <option value="средний">средний</option>
+              <option value="низкий">низкий</option>
+            </select>
+          </label>
+          <label className="text-sm flex items-center gap-2 mt-5">
+            <input type="checkbox" className="w-4 h-4 accent-black" checked={form.has_mini} onChange={(e) => set("has_mini", e.target.checked)} />
+            <span>Есть мини-версия</span>
+          </label>
+        </div>
+        {error && <div className="text-xs text-red-600 mt-3">{error}</div>}
+        <div className="flex gap-2 justify-end mt-5">
+          <button className="btn-secondary text-sm" onClick={onClose}>Отмена</button>
+          <button className="btn-primary text-sm" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Сохранение..." : "Сохранить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +543,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
   const [priceEditId, setPriceEditId] = useState<number | null>(null);
   const [priceRu, setPriceRu] = useState("");
   const [priceEu, setPriceEu] = useState("");
+  const [formTarget, setFormTarget] = useState<(PigmentCreate & { id?: number }) | null | "new">(null);
 
   const regionOptions = ["Глобально", ...regions];
   const zoneOptions = ["Все", "Брови", "Губы", "Веки"];
@@ -394,6 +618,23 @@ function PigmentsTab({ regions }: { regions: string[] }) {
     setPriceEditId(null);
   };
 
+  const openEdit = (pig: PigmentWithSettings) => {
+    setFormTarget({
+      id: pig.id, zone: pig.zone ?? "Брови", line: pig.line ?? "", name: pig.name ?? "",
+      temperature: "", saturation: "", role: pig.role ?? "", fitzpatrick: pig.fitzpatrick ?? "",
+      is_corrector: pig.is_corrector, priority: pig.priority ?? "стандарт",
+      price_ru: pig.price_ru ?? undefined, price_eu: pig.price_eu ?? undefined,
+      is_mini: pig.is_mini, volume_ml: pig.volume_ml ?? "",
+    });
+  };
+
+  const handleFormSaved = (saved: PigmentWithSettings) => {
+    setPigments((prev) => {
+      const exists = prev.some((p) => p.id === saved.id);
+      return exists ? prev.map((p) => (p.id === saved.id ? saved : p)) : [...prev, saved];
+    });
+  };
+
   return (
     <div>
       {/* Controls */}
@@ -425,6 +666,9 @@ function PigmentsTab({ regions }: { regions: string[] }) {
             </button>
           ))}
         </div>
+        <button className="btn-primary text-sm ml-auto" onClick={() => setFormTarget("new")}>
+          + Добавить пигмент
+        </button>
       </div>
 
       {selectedRegion === "Глобально" && (
@@ -458,8 +702,22 @@ function PigmentsTab({ regions }: { regions: string[] }) {
               {pigments.map((pig, i) => (
                 <tr key={pig.id} className={`border-b border-gray-100 ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}>
                   <td className="px-4 py-2.5">
-                    <div className="font-medium text-gray-900">{pig.name}</div>
-                    <div className="text-xs text-gray-400">{pig.line} · {pig.zone}</div>
+                    <div className="flex items-center gap-1.5 group">
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {pig.name}{pig.is_mini && <span className="text-xs text-black/35 font-normal"> · мини</span>}
+                          {pig.volume_ml && <span className="text-xs text-black/35 font-normal"> · {pig.volume_ml}</span>}
+                        </div>
+                        <div className="text-xs text-gray-400">{pig.line} · {pig.zone}</div>
+                      </div>
+                      <button
+                        onClick={() => openEdit(pig)}
+                        className="opacity-0 group-hover:opacity-100 text-black/25 hover:text-black/60 text-xs transition-opacity"
+                        title="Редактировать"
+                      >
+                        ✏
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-gray-600">{pig.fitzpatrick || "—"}</td>
                   <td className="px-4 py-2.5">
@@ -548,6 +806,14 @@ function PigmentsTab({ regions }: { regions: string[] }) {
           </div>
         </div>
       )}
+
+      {formTarget && (
+        <PigmentFormModal
+          initial={formTarget === "new" ? null : formTarget}
+          onClose={() => setFormTarget(null)}
+          onSaved={handleFormSaved}
+        />
+      )}
     </div>
   );
 }
@@ -565,6 +831,7 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
   const [cPriceEditId, setCPriceEditId] = useState<number | null>(null);
   const [cPriceRu, setCPriceRu] = useState("");
   const [cPriceEu, setCPriceEu] = useState("");
+  const [formTarget, setFormTarget] = useState<(ConsumableCreate & { id?: number }) | null | "new">(null);
 
   const regionOptions = ["Глобально", ...regions];
 
@@ -632,6 +899,21 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
     setCPriceEditId(null);
   };
 
+  const openEdit = (c: ConsumableWithSettings) => {
+    setFormTarget({
+      id: c.id, name: c.name ?? "", category: c.category ?? "", zone: c.zone ?? "",
+      price_ru: c.price_ru ?? undefined, price_eu: c.price_eu ?? undefined,
+      has_mini: c.has_mini, gift_priority: c.gift_priority ?? "средний",
+    });
+  };
+
+  const handleFormSaved = (saved: ConsumableWithSettings) => {
+    setConsumables((prev) => {
+      const exists = prev.some((x) => x.id === saved.id);
+      return exists ? prev.map((x) => (x.id === saved.id ? saved : x)) : [...prev, saved];
+    });
+  };
+
   const filtered = consumables.filter(
     (c) => categoryFilter === "Все" || (c.category || "—") === categoryFilter
   );
@@ -667,6 +949,9 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
             </button>
           ))}
         </div>
+        <button className="btn-primary text-sm ml-auto" onClick={() => setFormTarget("new")}>
+          + Добавить расходник
+        </button>
       </div>
 
       {loading ? (
@@ -690,8 +975,19 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
               {filtered.map((c, i) => (
                 <tr key={c.id} className={`border-b border-gray-100 ${i % 2 === 0 ? "" : "bg-gray-50/50"}`}>
                   <td className="px-4 py-2.5">
-                    <div className="font-medium text-gray-900">{c.name}</div>
-                    <div className="text-xs text-gray-400">{c.category}</div>
+                    <div className="flex items-center gap-1.5 group">
+                      <div>
+                        <div className="font-medium text-gray-900">{c.name}</div>
+                        <div className="text-xs text-gray-400">{c.category}</div>
+                      </div>
+                      <button
+                        onClick={() => openEdit(c)}
+                        className="opacity-0 group-hover:opacity-100 text-black/25 hover:text-black/60 text-xs transition-opacity"
+                        title="Редактировать"
+                      >
+                        ✏
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-gray-600">{c.zone || "—"}</td>
                   <td className="px-4 py-2.5">
@@ -787,6 +1083,14 @@ function ConsumablesTab({ regions }: { regions: string[] }) {
           </table>
           </div>
         </div>
+      )}
+
+      {formTarget && (
+        <ConsumableFormModal
+          initial={formTarget === "new" ? null : formTarget}
+          onClose={() => setFormTarget(null)}
+          onSaved={handleFormSaved}
+        />
       )}
     </div>
   );

@@ -6,14 +6,15 @@ and region-based top-seller rankings.
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Pigment, Consumable, RegionRanking, PigmentSettings, ConsumableSettings
 from ..schemas import (
     RegionRankingItem, RegionRankingOut,
-    PigmentSettingsIn, PigmentWithSettings,
-    ConsumableSettingsIn, ConsumableWithSettings,
+    PigmentSettingsIn, PigmentWithSettings, PigmentCreate, PigmentUpdate,
+    ConsumableSettingsIn, ConsumableWithSettings, ConsumableCreate, ConsumableUpdate,
 )
 from ..services.countries import ALL_REGIONS
 from .auth import require_admin
@@ -129,12 +130,48 @@ def list_pigments_with_settings(
             is_corrector=p.is_corrector,
             priority=p.priority,
             price_ru=p.price_ru,
+            price_eu=p.price_eu,
+            is_mini=p.is_mini,
+            volume_ml=p.volume_ml,
             is_hidden=s.is_hidden if s else False,
             hide_reason=s.hide_reason if s else None,
             is_promoted=s.is_promoted if s else False,
             sort_order=s.sort_order if s else 0,
         ))
     return result
+
+
+def _pigment_to_schema(p: Pigment) -> PigmentWithSettings:
+    return PigmentWithSettings(
+        id=p.id, number=p.number, zone=p.zone, line=p.line, name=p.name,
+        role=p.role, fitzpatrick=p.fitzpatrick, is_corrector=p.is_corrector,
+        priority=p.priority, price_ru=p.price_ru, price_eu=p.price_eu,
+        is_mini=p.is_mini, volume_ml=p.volume_ml,
+    )
+
+
+@router.post("/pigments", response_model=PigmentWithSettings, status_code=201, dependencies=[Depends(require_admin)])
+def create_pigment(data: PigmentCreate, db: Session = Depends(get_db)):
+    """Add a new pigment to the catalog."""
+    max_num = db.query(func.max(Pigment.number)).scalar() or 0
+    pigment = Pigment(number=max_num + 1, **data.model_dump())
+    db.add(pigment)
+    db.commit()
+    db.refresh(pigment)
+    return _pigment_to_schema(pigment)
+
+
+@router.put("/pigments/{pigment_id}", response_model=PigmentWithSettings, dependencies=[Depends(require_admin)])
+def update_pigment(pigment_id: int, data: PigmentUpdate, db: Session = Depends(get_db)):
+    """Full edit of a pigment's catalog fields (not per-region settings)."""
+    pigment = db.query(Pigment).filter(Pigment.id == pigment_id).first()
+    if not pigment:
+        raise HTTPException(status_code=404, detail="Pigment not found")
+    for field, value in data.model_dump().items():
+        setattr(pigment, field, value)
+    db.commit()
+    db.refresh(pigment)
+    return _pigment_to_schema(pigment)
 
 
 @router.put("/pigments/{pigment_id}/settings", response_model=PigmentWithSettings, dependencies=[Depends(require_admin)])
@@ -238,6 +275,7 @@ def list_consumables_with_settings(
             category=c.category,
             zone=c.zone,
             price_ru=c.price_ru,
+            price_eu=c.price_eu,
             has_mini=c.has_mini,
             gift_priority=c.gift_priority,
             is_hidden=s.is_hidden if s else False,
@@ -246,6 +284,38 @@ def list_consumables_with_settings(
             sort_order=s.sort_order if s else 0,
         ))
     return result
+
+
+def _consumable_to_schema(c: Consumable) -> ConsumableWithSettings:
+    return ConsumableWithSettings(
+        id=c.id, number=c.number, name=c.name, category=c.category, zone=c.zone,
+        price_ru=c.price_ru, price_eu=c.price_eu, has_mini=c.has_mini,
+        gift_priority=c.gift_priority,
+    )
+
+
+@router.post("/consumables", response_model=ConsumableWithSettings, status_code=201, dependencies=[Depends(require_admin)])
+def create_consumable(data: ConsumableCreate, db: Session = Depends(get_db)):
+    """Add a new consumable to the catalog."""
+    max_num = db.query(func.max(Consumable.number)).scalar() or 0
+    consumable = Consumable(number=max_num + 1, **data.model_dump())
+    db.add(consumable)
+    db.commit()
+    db.refresh(consumable)
+    return _consumable_to_schema(consumable)
+
+
+@router.put("/consumables/{consumable_id}", response_model=ConsumableWithSettings, dependencies=[Depends(require_admin)])
+def update_consumable(consumable_id: int, data: ConsumableUpdate, db: Session = Depends(get_db)):
+    """Full edit of a consumable's catalog fields (not per-region settings)."""
+    consumable = db.query(Consumable).filter(Consumable.id == consumable_id).first()
+    if not consumable:
+        raise HTTPException(status_code=404, detail="Consumable not found")
+    for field, value in data.model_dump().items():
+        setattr(consumable, field, value)
+    db.commit()
+    db.refresh(consumable)
+    return _consumable_to_schema(consumable)
 
 
 @router.put("/consumables/{consumable_id}/settings", response_model=ConsumableWithSettings, dependencies=[Depends(require_admin)])

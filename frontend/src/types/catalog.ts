@@ -29,10 +29,28 @@ export interface PigmentWithSettings {
   priority?: string | null;
   price_ru?: number | null;
   price_eu?: number | null;
+  is_mini: boolean;
+  volume_ml?: string | null;
   is_hidden: boolean;
   hide_reason?: string | null;
   is_promoted: boolean;
   sort_order: number;
+}
+
+export interface PigmentCreate {
+  zone: string;
+  line?: string | null;
+  name: string;
+  temperature?: string | null;
+  saturation?: string | null;
+  role?: string | null;
+  fitzpatrick?: string | null;
+  is_corrector: boolean;
+  priority?: string | null;
+  price_ru?: number | null;
+  price_eu?: number | null;
+  is_mini: boolean;
+  volume_ml?: string | null;
 }
 
 export interface ConsumableSettingsIn {
@@ -57,4 +75,14 @@ export interface ConsumableWithSettings {
   hide_reason?: string | null;
   gift_priority_override?: string | null;
   sort_order: number;
+}
+
+export interface ConsumableCreate {
+  name: string;
+  category?: string | null;
+  zone?: string | null;
+  price_ru?: number | null;
+  price_eu?: number | null;
+  has_mini: boolean;
+  gift_priority?: string | null;
 }

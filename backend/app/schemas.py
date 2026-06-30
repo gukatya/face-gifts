@@ -171,12 +171,35 @@ class PigmentWithSettings(BaseModel):
     is_corrector: bool
     priority: Optional[str]
     price_ru: Optional[float]
+    price_eu: Optional[float] = None
+    is_mini: bool = False
+    volume_ml: Optional[str] = None
     # settings for selected region
     is_hidden: bool = False
     hide_reason: Optional[str] = None
     is_promoted: bool = False
     sort_order: int = 0
     model_config = {"from_attributes": True}
+
+
+class PigmentCreate(BaseModel):
+    zone: str
+    line: Optional[str] = None
+    name: str
+    temperature: Optional[str] = None
+    saturation: Optional[str] = None
+    role: Optional[str] = None
+    fitzpatrick: Optional[str] = None
+    is_corrector: bool = False
+    priority: Optional[str] = "стандарт"
+    price_ru: Optional[float] = None
+    price_eu: Optional[float] = None
+    is_mini: bool = False
+    volume_ml: Optional[str] = None
+
+
+class PigmentUpdate(PigmentCreate):
+    pass
 
 
 class ConsumableSettingsIn(BaseModel):
@@ -194,6 +217,7 @@ class ConsumableWithSettings(BaseModel):
     category: Optional[str]
     zone: Optional[str]
     price_ru: Optional[float]
+    price_eu: Optional[float] = None
     has_mini: bool
     gift_priority: Optional[str]
     is_hidden: bool = False
@@ -201,3 +225,17 @@ class ConsumableWithSettings(BaseModel):
     gift_priority_override: Optional[str] = None
     sort_order: int = 0
     model_config = {"from_attributes": True}
+
+
+class ConsumableCreate(BaseModel):
+    name: str
+    category: Optional[str] = None
+    zone: Optional[str] = None
+    price_ru: Optional[float] = None
+    price_eu: Optional[float] = None
+    has_mini: bool = False
+    gift_priority: Optional[str] = "средний"
+
+
+class ConsumableUpdate(ConsumableCreate):
+    pass

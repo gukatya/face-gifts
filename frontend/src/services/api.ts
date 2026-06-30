@@ -4,8 +4,10 @@ import type {
   RegionRankingItem,
   PigmentWithSettings,
   PigmentSettingsIn,
+  PigmentCreate,
   ConsumableWithSettings,
   ConsumableSettingsIn,
+  ConsumableCreate,
 } from "../types/catalog";
 
 const BASE = "/api";
@@ -110,6 +112,10 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    createPigment: (data: PigmentCreate) =>
+      request<PigmentWithSettings>("/catalog/pigments", { method: "POST", body: JSON.stringify(data) }),
+    updatePigment: (id: number, data: PigmentCreate) =>
+      request<PigmentWithSettings>(`/catalog/pigments/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     consumables: (region?: string) => {
       const params = new URLSearchParams();
       if (region) params.set("region", region);
@@ -121,6 +127,10 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
+    createConsumable: (data: ConsumableCreate) =>
+      request<ConsumableWithSettings>("/catalog/consumables", { method: "POST", body: JSON.stringify(data) }),
+    updateConsumable: (id: number, data: ConsumableCreate) =>
+      request<ConsumableWithSettings>(`/catalog/consumables/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     updatePigmentPrice: (id: number, price_ru?: number, price_eu?: number) =>
       request<{ id: number; name: string; price_ru: number; price_eu: number }>(
         `/catalog/pigments/${id}/price`,
