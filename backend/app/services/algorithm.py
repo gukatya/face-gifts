@@ -11,16 +11,27 @@ from sqlalchemy.orm import Session
 from ..models import Pigment, Consumable
 from .countries import fitzpatrick_overlaps
 
+# Канонических линий всего три: Базовая (гибрид) / Органическая линия / Минералы.
+# Раньше одна и та же линия называлась по-разному в зависимости от зоны
+# (Брови: "Базовая (гибрид)" / "Organic brows"; Губы: "Базовая линия" /
+# "Organic love"; Веки: "Базовая линия (веки)") — это путало и ценообразование
+# (объёмные тиры не подхватывали часть позиций), и потенциально подбор по
+# линии. Названия в каталоге нормализованы (см. seed.py LINE_RENAMES),
+# здесь используем только канонические имена.
+HYBRID_LINE = "Базовая (гибрид)"
+ORGANIC_LINE = "Органическая линия"
+MINERAL_LINE = "Минералы"
+
 # Nomination name → required pigment line(s) (None = flexible)
 NOMINATION_LINES: dict[str, list[str]] = {
-    "Брови — пудровое / градиент":        ["Базовая (гибрид)", "Минералы"],
-    "Брови — волоски (аппаратная)":       ["Минералы"],
-    "Брови — микроблейдинг":              ["Organic brows"],
-    "Губы — акварель / помадный / омбрэ": ["Organic love", "Базовая линия"],
-    "Латекс":                             ["Organic love", "Базовая линия", "Базовая (гибрид)", "Минералы"],
-    "Стрелка с растушёвкой":              ["Базовая линия (веки)"],
+    "Брови — пудровое / градиент":        [HYBRID_LINE, MINERAL_LINE],
+    "Брови — волоски (аппаратная)":       [MINERAL_LINE],
+    "Брови — микроблейдинг":              [ORGANIC_LINE],
+    "Губы — акварель / помадный / омбрэ": [ORGANIC_LINE, HYBRID_LINE],
+    "Латекс":                             [ORGANIC_LINE, HYBRID_LINE, MINERAL_LINE],
+    "Стрелка с растушёвкой":              [HYBRID_LINE],
     "Ареола":                             [],
-    "Перекрытие бровей":                  ["Базовая (гибрид)", "Organic brows"],
+    "Перекрытие бровей":                  [HYBRID_LINE, ORGANIC_LINE],
 }
 
 # Region → preferred pigment names for brows (ordered by priority)
@@ -198,15 +209,15 @@ def select_brow_pigments(
     fitz_max: int = 6,
     variant: int = 0,
 ) -> list:
-    lines = NOMINATION_LINES.get(nomination_name, ["Базовая (гибрид)", "Минералы"])
+    lines = NOMINATION_LINES.get(nomination_name, [HYBRID_LINE, MINERAL_LINE])
 
     # Narrow lines based on region/nomination
     if len(lines) > 1 and ("Ближний Восток" in region or "Юго-Восточная Азия" in region or "ЮВА" in region):
-        lines = ["Organic brows"]
+        lines = [ORGANIC_LINE]
     elif len(lines) > 1 and nomination_name == "Брови — пудровое / градиент":
         # Russia/Europe/Balkans/North America → Минералы; otherwise Базовая (гибрид)
         if any(r in region for r in ["Россия", "Западная Европа", "Балканы", "Северная Америка"]):
-            lines = ["Минералы"]
+            lines = [MINERAL_LINE]
         else:
             lines = [lines[0]]
     elif len(lines) > 1:
@@ -296,7 +307,10 @@ def select_eye_pigments(db: Session, count: int, warehouse: str = "Россия"
     for name in ordered_names:
         if len(result) >= count:
             break
-        p = db.query(Pigment).filter(Pigment.name == name, Pigment.is_mini == False).first()
+        p = db.query(Pigment).filter(
+            Pigment.name == name, Pigment.is_mini == False,
+            or_(Pigment.volume_ml == None, Pigment.volume_ml != "12мл"),  # noqa: E711
+        ).first()
         if p:
             result.append(p)
     return result[:count]

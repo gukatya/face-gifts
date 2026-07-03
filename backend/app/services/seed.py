@@ -1,6 +1,11 @@
 import pandas as pd
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from ..models import Pigment, Consumable, Nomination
+
+
+def _next_pigment_number(db: Session) -> int:
+    return (db.query(func.max(Pigment.number)).scalar() or 0) + 1
 
 import os
 from pathlib import Path
@@ -102,9 +107,38 @@ def seed_consumables(db: Session) -> int:
     return count
 
 
+# Канонические названия линий — раньше одна и та же линия называлась
+# по-разному в зависимости от зоны (см. LINE_RENAMES), что путало и
+# объёмные тиры (часть позиций молчаливо выпадала), и потенциально подбор
+# пигментов по линии. Реально линий всего три: Базовая (гибрид) /
+# Органическая линия / Минералы.
+HYBRID_LINE = "Базовая (гибрид)"
+ORGANIC_LINE = "Органическая линия"
+MINERAL_LINE = "Минералы"
+
+LINE_RENAMES = {
+    "Organic love": ORGANIC_LINE,
+    "Organic brows": ORGANIC_LINE,
+    "Базовая линия": HYBRID_LINE,
+    "Базовая линия (веки)": HYBRID_LINE,
+}
+
+
+def seed_normalize_lines(db: Session) -> int:
+    """Сводит исторически разные названия одной и той же линии к одному каноническому."""
+    count = 0
+    for old_name, new_name in LINE_RENAMES.items():
+        rows = db.query(Pigment).filter(Pigment.line == old_name).all()
+        for p in rows:
+            p.line = new_name
+            count += 1
+    db.commit()
+    return count
+
+
 # Оттенки, для которых заводим мини-версию (замена бумажным наборам сэмплов —
 # теперь каждый мини-оттенок отдельная позиция в каталоге, тот же цвет, другой
-# объём). Цена мини всегда производная от текущей цены полноразмерного
+# объём — 3мл). Цена мини всегда производная от текущей цены полноразмерного
 # (small/6мл) пигмента того же оттенка — половина цены, округлённая до 5₽.
 MINI_SHADE_NAMES = [
     "Голд", "Медиум", "Дарк", "Орех", "Джонни", "Эспрессо",
@@ -112,7 +146,7 @@ MINI_SHADE_NAMES = [
     "Дженнифер", "Тайра", "Мокко", "Корица", "Карамель", "Шейк",
     "Ворм", "Лайт", "Кирпичный", "Вишня",
 ]
-MINI_NUMBER_BASE = 9000
+MINI_VOLUME = "3мл"
 # Цены, которыми мини-пигменты были засеяны ДО перехода на формулу
 # «половина цены полноразмерного» — используются только чтобы один раз
 # поправить уже существующие строки, не трогая ручные правки админа позже.
@@ -126,7 +160,8 @@ def _mini_price_for(parent: Pigment) -> float:
 
 def seed_mini_pigments(db: Session) -> int:
     count = 0
-    for offset, name in enumerate(MINI_SHADE_NAMES, start=1):
+    next_number = _next_pigment_number(db)
+    for name in MINI_SHADE_NAMES:
         parent = (
             db.query(Pigment)
             .filter(Pigment.name == name, Pigment.is_mini == False)  # noqa: E712
@@ -141,10 +176,12 @@ def seed_mini_pigments(db: Session) -> int:
             # Одноразовая правка цены для строк, засеянных по старой (фиксированной) схеме.
             if existing.price_ru in _LEGACY_MINI_PRICES:
                 existing.price_ru = _mini_price_for(parent)
+            if not existing.volume_ml:
+                existing.volume_ml = MINI_VOLUME
             continue
 
         mini = Pigment(
-            number=MINI_NUMBER_BASE + offset,
+            number=next_number,
             zone=parent.zone,
             line=parent.line,
             name=parent.name,
@@ -161,40 +198,46 @@ def seed_mini_pigments(db: Session) -> int:
             recommended_mixes=parent.recommended_mixes,
             notes="Мини-объём (сэмпл)",
             is_mini=True,
+            volume_ml=MINI_VOLUME,
         )
         db.add(mini)
         count += 1
+        next_number += 1
     db.commit()
     return count
 
 
-# Линии, для которых ввели два объёма: маленький (6мл, новая базовая цена)
-# и большой (12мл, новая позиция в каталоге).
-VOLUME_TIER_LINES = {"Базовая (гибрид)", "Organic love", "Organic brows"}
-SMALL_PRICE = 1490.0
-LARGE_PRICE = 2290.0
-LARGE_NUMBER_BASE = 8000
-# Старая единая цена этих линий — используется только чтобы один раз поднять
-# уже существующие строки, не перетирая ручные правки админа позже.
+# Линии, для которых ведём два объёма (6мл / 12мл) — теперь все три реальные
+# линии, не только гибрид/органика. Формат: line -> (small_price, large_price).
+# Гибрид/органика: старая единая цена 1290₽ поднята один раз до 1490₽ (small),
+# добавлена новая позиция 2290₽ (large). Минералы: цена 6мл НЕ менялась
+# (1590₽, как и раньше) — добавляется только новая позиция 12мл, по той же
+# пропорции small->large, что и у гибрида/органики (×2290/1490).
+_MINERAL_LARGE = round(1590.0 * 2290.0 / 1490.0 / 10) * 10  # ≈2440₽
+VOLUME_TIER_PRICES = {
+    HYBRID_LINE:  (1490.0, 2290.0),
+    ORGANIC_LINE: (1490.0, 2290.0),
+    MINERAL_LINE: (1590.0, float(_MINERAL_LARGE)),
+}
+# Старая единая цена гибрида/органики — используется только чтобы один раз
+# поднять уже существующие строки, не перетирая ручные правки админа позже.
 _LEGACY_UNIT_PRICE = 1290.0
 
 
 def seed_pigment_volume_tiers(db: Session) -> int:
-    """
-    Гибридная и органическая линии теперь продаются в двух объёмах:
-    6мл (1490₽, бывшая единая позиция — цена поднята один раз) и 12мл
-    (2290₽, новая позиция). Минералы и прочие линии не затронуты.
-    """
+    """Каждый полноразмерный пигмент существует в двух объёмах: 6мл и 12мл."""
     count = 0
+    next_number = _next_pigment_number(db)
     small_rows = (
         db.query(Pigment)
-        .filter(Pigment.line.in_(VOLUME_TIER_LINES), Pigment.is_mini == False)  # noqa: E712
+        .filter(Pigment.line.in_(VOLUME_TIER_PRICES.keys()), Pigment.is_mini == False)  # noqa: E712
         .filter((Pigment.volume_ml == None) | (Pigment.volume_ml == "6мл"))  # noqa: E711
         .all()
     )
-    for offset, small in enumerate(small_rows, start=1):
-        if small.price_ru == _LEGACY_UNIT_PRICE:
-            small.price_ru = SMALL_PRICE
+    for small in small_rows:
+        small_price, large_price = VOLUME_TIER_PRICES[small.line]
+        if small.price_ru in (_LEGACY_UNIT_PRICE, small_price):
+            small.price_ru = small_price
         if not small.volume_ml:
             small.volume_ml = "6мл"
 
@@ -204,9 +247,11 @@ def seed_pigment_volume_tiers(db: Session) -> int:
             .first()
         )
         if has_large:
+            if has_large.price_ru != large_price and has_large.notes == "Большой объём (12мл)":
+                has_large.price_ru = large_price
             continue
         large = Pigment(
-            number=LARGE_NUMBER_BASE + offset,
+            number=next_number,
             zone=small.zone,
             line=small.line,
             name=small.name,
@@ -218,7 +263,7 @@ def seed_pigment_volume_tiers(db: Session) -> int:
             geo_europe=small.geo_europe,
             geo_asia=small.geo_asia,
             priority=small.priority,
-            price_ru=LARGE_PRICE,
+            price_ru=large_price,
             price_eu=None,
             recommended_mixes=small.recommended_mixes,
             notes="Большой объём (12мл)",
@@ -227,6 +272,7 @@ def seed_pigment_volume_tiers(db: Session) -> int:
         )
         db.add(large)
         count += 1
+        next_number += 1
     db.commit()
     return count
 
@@ -260,6 +306,7 @@ def seed_nominations(db: Session) -> int:
 def seed_all(db: Session) -> dict:
     return {
         "pigments": seed_pigments(db),
+        "line_renames": seed_normalize_lines(db),
         "volume_tiers": seed_pigment_volume_tiers(db),
         "mini_pigments": seed_mini_pigments(db),
         "consumables": seed_consumables(db),
