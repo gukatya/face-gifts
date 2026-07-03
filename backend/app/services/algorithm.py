@@ -316,16 +316,21 @@ def select_eye_pigments(db: Session, count: int, warehouse: str = "Россия"
     return result[:count]
 
 
-# Фиксированное количество оттенков по месту.
-# Сэмпл = 3 оттенка. Полноразмерных пигментов = shade_count - 3 (если есть сэмпл).
+# Максимальное количество пигментов по месту — потолок, не цель.
+# Реальное число определяется бюджетом через MAX_FULL_PIGMENT_PRICE.
 PLACE_SHADE_COUNT: dict = {
-    "1":        5,   # сэмпл(3) + 2 пигмента (или 5 без сэмпла)
-    "2":        4,   # сэмпл(3) + 1 пигмент  (или 4 без сэмпла)
-    "3":        3,   # только сэмпл(3)         (или 3 без сэмпла)
-    "розыгрыш": 4,   # как 2-е место
+    "1":        5,
+    "2":        4,
+    "3":        3,
+    "розыгрыш": 4,
     "участник": 1,
     "гран-при": 6,   # GP — отдельная логика в draft.py
 }
+
+# Самая дорогая цена полноразмерного пигмента 6мл (Минералы).
+# Единый делитель при вычислении числа слотов: все номинации одного места
+# получают одинаковое количество пигментов вне зависимости от зоны/линии.
+MAX_FULL_PIGMENT_PRICE = 1590.0
 
 # Обязательные расходники — входят в КАЖДЫЙ подарок независимо от уровня.
 # Формат: (название, кол-во).
@@ -446,21 +451,18 @@ def select_items_for_budget(
     """
     Подбор подарка по месту/бюджету.
 
-    Единая жадная логика для ВСЕХ зон (Брови/Губы/Веки/смешанные): идём по
-    кандидатам-оттенкам в порядке приоритета и для каждого пробуем сначала
-    добавить ПОЛНОРАЗМЕРНЫЙ пигмент; если бюджет не тянет — добавляем тот же
-    оттенок МИНИ-версией (дешевле, см. Pigment.is_mini в каталоге — замена
-    бумажным наборам сэмплов отдельными позициями). Это именно то, для чего
-    раньше служили наборы сэмплов: растянуть бюджет на большее число разных
-    оттенков вместо одного дорогого набора. Останавливаемся по бюджету места
-    (place) или по потолку числа оттенков из PLACE_SHADE_COUNT.
+    Все номинации одного места получают ОДИНАКОВОЕ КОЛИЧЕСТВО полноразмерных (6мл)
+    пигментов. Число слотов = floor((бюджет − расходники) / MAX_FULL_PIGMENT_PRICE),
+    где MAX_FULL_PIGMENT_PRICE — цена самой дорогой линии (Минералы 1590₽).
+    Это гарантирует единую "рецептуру" для всех зон на одном месте; разница
+    в итоговой сумме — только от цены конкретной линии (1490 vs 1590), что
+    является допустимой погрешностью.
+
+    Пробники (мини) в автоматический подбор НЕ включаются — они добавляются
+    вручную из каталога при необходимости.
 
     Returns {"pigments": [...], "consumables": [...], "samples": []}
-    (ключ "samples" сохранён для обратной совместимости вызовов — мини-пигменты
-    теперь идут в "pigments" вместе с полноразмерными)
     """
-    is_russia_region = "Россия" in region or "СНГ" in region
-    # Потолок по количеству оттенков для этого места; без явного места — мягкий потолок.
     place_cap = PLACE_SHADE_COUNT.get(place, 6) if place else 6
 
     # --- 1. Пигменты-кандидаты (полноразмерные, по приоритету региона/линии) ---
@@ -490,59 +492,39 @@ def select_items_for_budget(
         shift = variant % max(1, len(candidates))
         candidates = candidates[shift:] + candidates[:shift]
 
-    # --- 2. Мини-версии тех же оттенков (если есть в каталоге для региона РФ/СНГ) ---
-    minis_by_name: dict = {}
-    if include_samples and is_russia_region:
-        names = [p.name for p in candidates if p.name]
-        if names:
-            mini_rows = db.query(Pigment).filter(
-                Pigment.name.in_(names), Pigment.is_mini == True,  # noqa: E712
-            ).all()
-            minis_by_name = {p.name: p for p in mini_rows}
-
-    # --- 3. Жадно наполняем оттенки в рамках бюджета на это место ---
+    # --- 2. Единое число слотов для всех номинаций этого места ---
     mandatory_total = _mandatory_consumables_total(db)
-    remaining = max(0.0, (budget or 0) - mandatory_total) if budget is not None else None
-    budget_cap = remaining * BUDGET_OVERSHOOT if remaining is not None else None
+    available = max(0.0, (budget or 0) - mandatory_total) if budget is not None else None
 
-    pigments: list = []
-    spent = 0.0
-    shade_count = 0
+    if available is None:
+        uniform_slots = place_cap
+    else:
+        uniform_slots = min(place_cap, int(available / MAX_FULL_PIGMENT_PRICE))
+        if uniform_slots == 0 and candidates:
+            uniform_slots = 1  # минимум 1 пигмент при любом бюджете
 
-    for cand in candidates:
-        if shade_count >= place_cap:
-            break
-        full_price = cand.price_ru or 0
-        if budget_cap is None or spent + full_price <= budget_cap:
-            pigments.append(cand)
-            spent += full_price
-            shade_count += 1
-            continue
-        mini = minis_by_name.get(cand.name)
-        if mini is not None and (budget_cap is None or spent + (mini.price_ru or 0) <= budget_cap):
-            pigments.append(mini)
-            spent += mini.price_ru or 0
-            shade_count += 1
+    # --- 3. Берём первые uniform_slots кандидатов ---
+    pigments = candidates[:uniform_slots]
+    spent = sum(p.price_ru or 0 for p in pigments)
 
-    # Подарок без единого пигмента — не вариант, даже если бюджет совсем
-    # тонкий: если ничего не влезло, берём самый дешёвый доступный вариант
-    # (мини, если есть, иначе полный) — даже с небольшим превышением бюджета.
-    # Применяется одинаково для всех зон/мест: при совсем тонком бюджете
-    # подарки на разных местах могут совпасть по цене (бюджет не позволяет
-    # различие), но порядок никогда не инвертируется.
+    # Крайний случай: кандидатов не нашлось (пустой каталог) — берём любой
+    # самый дешёвый пигмент включая мини, чтобы подарок не был пустым.
     if not pigments and candidates:
-        options = []
-        for cand in candidates:
-            options.append((cand.price_ru or 0, cand))
-            mini = minis_by_name.get(cand.name)
-            if mini is not None:
-                options.append((mini.price_ru or 0, mini))
-        price, obj = min(options, key=lambda o: o[0])
-        pigments.append(obj)
-        spent += price
+        is_russia_region = "Россия" in region or "СНГ" in region
+        options = [(p.price_ru or 0, p) for p in candidates]
+        if include_samples and is_russia_region:
+            names = [p.name for p in candidates if p.name]
+            if names:
+                mini_rows = db.query(Pigment).filter(
+                    Pigment.name.in_(names), Pigment.is_mini == True,  # noqa: E712
+                ).all()
+                options += [(m.price_ru or 0, m) for m in mini_rows]
+        _, cheapest = min(options, key=lambda o: o[0])
+        pigments = [cheapest]
+        spent = cheapest.price_ru or 0
 
-    # --- 4. Расходники — жадно, в рамках оставшегося после пигментов бюджета ---
-    leftover = max(0.0, remaining - spent) if remaining is not None else None
+    # --- 4. Расходники — на остаток после пигментов ---
+    leftover = max(0.0, available - spent) if available is not None else None
     consumables = _get_fixed_consumables(db, leftover, zone)
 
     return {"pigments": pigments, "consumables": consumables, "samples": []}
