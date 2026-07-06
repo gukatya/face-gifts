@@ -224,6 +224,28 @@ export default function DashboardPage() {
                               <span className="text-black/40">Отгружено {event.shipped_date}</span>
                             )}
                           </div>
+                          {/* Counts + budget summary */}
+                          {(() => {
+                            const winners = (event.nominations_data || []).reduce(
+                              (s, n) => s + (n.place1 || 0) + (n.place2 || 0) + (n.place3 || 0), 0
+                            ) + (event.grand_prix_count || 0) + (event.giveaways_count || 0);
+                            const hasWinners = winners > 0;
+                            const hasParticipants = (event.participants_count || 0) > 0 &&
+                              event.recipients !== "только победители";
+                            const parts: string[] = [];
+                            if (hasWinners) parts.push(`победители — ${winners}`);
+                            if (hasParticipants) parts.push(`участники — ${event.participants_count}`);
+                            const budgetStr = event.total_budget
+                              ? event.total_budget.toLocaleString("ru-RU") + " ₽"
+                              : null;
+                            if (!parts.length && !budgetStr) return null;
+                            return (
+                              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-black/40">
+                                {parts.length > 0 && <span>{parts.join(", ")}</span>}
+                                {budgetStr && <span className="font-medium text-black/55">{budgetStr}</span>}
+                              </div>
+                            );
+                          })()}
 
                           {/* Ship date picker */}
                           {isSettingShip && (
