@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import text
 from .database import Base, engine, get_db
-from .routers import events, knowledge, catalog, budgets, dashboard
+from .routers import events, knowledge, catalog, budgets, dashboard, proposals
 from .routers.auth import router as auth_router
 from .services.seed import seed_all
 
@@ -52,6 +52,7 @@ app.include_router(knowledge.router, prefix="/api")
 app.include_router(catalog.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(proposals.router, prefix="/api")
 
 
 @app.on_event("startup")

@@ -135,6 +135,28 @@ class PigmentSettings(Base):
     pigment = relationship("Pigment")
 
 
+class Proposal(Base):
+    """Incoming event offer that needs a participation decision before becoming an Event."""
+    __tablename__ = "proposals"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    name          = Column(String(300), nullable=False)
+    date_text     = Column(String(100), nullable=True)   # free text: "26–27 сентября"
+    city          = Column(String(200), nullable=True)
+    social_link   = Column(String(500), nullable=True)   # instagram / website
+    organizer_name    = Column(String(200), nullable=True)
+    organizer_contact = Column(String(300), nullable=True)  # phone / email
+    expected_min  = Column(Integer, nullable=True)
+    expected_max  = Column(Integer, nullable=True)
+    perks         = Column(JSON, nullable=True)   # list: speaker_stage / speaker_nonstop / stand / logo / smm / certificate
+    requirements  = Column(Text, nullable=True)   # what they want from FACE
+    raw_text      = Column(Text, nullable=True)   # paste original offer message
+    status        = Column(String(20), default="new")  # new / approved / rejected
+    decision_comment = Column(Text, nullable=True)
+    decided_at    = Column(DateTime, nullable=True)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+
+
 class ConsumableSettings(Base):
     """Per-region settings for consumables."""
     __tablename__ = "consumable_settings"

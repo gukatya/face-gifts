@@ -1,4 +1,4 @@
-import type { Event, EventCreate, GiftSet, CalcLevels, Nomination, MonthlyBudget, DashboardStats } from "../types";
+import type { Event, EventCreate, GiftSet, CalcLevels, Nomination, MonthlyBudget, DashboardStats, Proposal, ProposalCreate } from "../types";
 import type {
   RegionRankingOut,
   RegionRankingItem,
@@ -141,6 +141,20 @@ export const api = {
         `/catalog/consumables/${id}/price`,
         { method: "PATCH", body: JSON.stringify({ price_ru, price_eu }) }
       ),
+  },
+  proposals: {
+    list: () => request<Proposal[]>("/proposals/"),
+    stats: () => request<{ new_count: number }>("/proposals/stats"),
+    create: (data: ProposalCreate) =>
+      request<Proposal>("/proposals/", { method: "POST", body: JSON.stringify(data) }),
+    update: (id: number, data: ProposalCreate) =>
+      request<Proposal>(`/proposals/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    decide: (id: number, decision: "approved" | "rejected", comment?: string) =>
+      request<Proposal>(`/proposals/${id}/decide`, {
+        method: "PATCH",
+        body: JSON.stringify({ decision, comment: comment ?? null }),
+      }),
+    delete: (id: number) => request<void>(`/proposals/${id}`, { method: "DELETE" }),
   },
   auth: {
     login: (password: string) =>

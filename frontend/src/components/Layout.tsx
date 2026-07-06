@@ -39,6 +39,7 @@ export default function Layout() {
               {/* Desktop nav — hidden on mobile */}
               <nav className="hidden sm:flex items-center gap-6 text-sm">
                 {navLink("/", "Мероприятия")}
+                {navLink("/proposals", "Предложения")}
                 {navLink("/analytics", "Аналитика")}
                 {role === "admin"    && navLink("/knowledge", "Каталог")}
                 {role === "employee" && navLink("/reference", "Памятка")}
@@ -57,6 +58,7 @@ export default function Layout() {
           {/* Mobile nav — second row, hidden on sm+ */}
           <nav className="flex sm:hidden items-center gap-5 text-sm pb-3 border-t border-white/10 pt-2.5 overflow-x-auto scrollbar-none">
             {navLink("/", "Мероприятия")}
+            {navLink("/proposals", "Предложения")}
             {navLink("/analytics", "Аналитика")}
             {role === "admin"    && navLink("/knowledge", "Каталог")}
             {role === "employee" && navLink("/reference", "Памятка")}

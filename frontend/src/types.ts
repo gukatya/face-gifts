@@ -75,6 +75,36 @@ export interface DashboardStats {
   upcoming_deadlines: ShippingDeadline[];
 }
 
+export type ProposalPerk =
+  | "speaker_stage"
+  | "speaker_nonstop"
+  | "stand"
+  | "logo"
+  | "smm"
+  | "certificate";
+
+export interface ProposalCreate {
+  name: string;
+  date_text?: string | null;
+  city?: string | null;
+  social_link?: string | null;
+  organizer_name?: string | null;
+  organizer_contact?: string | null;
+  expected_min?: number | null;
+  expected_max?: number | null;
+  perks?: ProposalPerk[] | null;
+  requirements?: string | null;
+  raw_text?: string | null;
+}
+
+export interface Proposal extends ProposalCreate {
+  id: number;
+  status: "new" | "approved" | "rejected";
+  decision_comment?: string | null;
+  decided_at?: string | null;
+  created_at: string;
+}
+
 export interface GiftItem {
   sku_type: "pigment" | "consumable" | "sample" | "certificate";
   sku_id: number;

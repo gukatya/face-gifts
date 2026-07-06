@@ -8,6 +8,7 @@ import DraftPage from "./pages/DraftPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReferencePage from "./pages/ReferencePage";
+import ProposalsPage from "./pages/ProposalsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { role } = useAuth();
@@ -33,6 +34,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="proposals" element={<ProposalsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="reference" element={<ReferencePage />} />
         {/* Admin-only */}

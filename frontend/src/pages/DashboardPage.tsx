@@ -57,9 +57,11 @@ export default function DashboardPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [shippingId, setShippingId] = useState<number | null>(null);
   const [shipDate, setShipDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [newProposalsCount, setNewProposalsCount] = useState(0);
 
   useEffect(() => {
     api.events.list().then(setEvents).finally(() => setLoading(false));
+    api.proposals.stats().then((s) => setNewProposalsCount(s.new_count)).catch(() => {});
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -96,6 +98,22 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {/* Proposals notification */}
+      {newProposalsCount > 0 && (
+        <Link
+          to="/proposals"
+          className="flex items-center justify-between gap-3 mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+            <span className="text-sm text-amber-800 font-medium">
+              {newProposalsCount} {newProposalsCount === 1 ? "предложение ожидает решения" : newProposalsCount < 5 ? "предложения ожидают решения" : "предложений ожидают решения"}
+            </span>
+          </div>
+          <span className="text-xs text-amber-600 font-medium shrink-0">Посмотреть →</span>
+        </Link>
+      )}
+
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end justify-between mb-6 sm:mb-8">
         <div>
