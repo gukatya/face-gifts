@@ -303,7 +303,8 @@ def seed_nominations(db: Session) -> int:
     return count
 
 
-KOSKO_SET_NAME = "FACE x MARIA KOSKO"
+KOSKO_SET_NAME = "Сет FACE x MARIA KOSKO"
+_KOSKO_OLD_NAME = "FACE x MARIA KOSKO"  # имя до переименования
 _KOSKO_LIP_SHADES = ["Тауп", "Мусс", "Брауни", "Крем"]
 
 
@@ -312,6 +313,12 @@ def seed_collaboration_items(db: Session) -> dict:
     from sqlalchemy import func as sqlfunc
 
     sets_added = 0
+    # Переименование старой записи (если была создана без префикса "Сет")
+    old_entry = db.query(Consumable).filter(Consumable.name == _KOSKO_OLD_NAME).first()
+    if old_entry:
+        old_entry.name = KOSKO_SET_NAME
+        db.commit()
+
     existing_set = db.query(Consumable).filter(Consumable.name == KOSKO_SET_NAME).first()
     if not existing_set:
         max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
