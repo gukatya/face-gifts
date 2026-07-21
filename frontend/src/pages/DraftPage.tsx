@@ -1,9 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import type { Event, GiftSet, GiftItem, Nomination } from "../types";
 import type { PigmentWithSettings, ConsumableWithSettings } from "../types/catalog";
+
+const _TRANSLIT: Record<string, string> = {
+  а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"i",
+  к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",
+  х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sh",ъ:"",ы:"i",ь:"",э:"e",ю:"u",я:"a",
+};
+function _translit(s: string): string {
+  return s.toLowerCase().split("").map((c) => _TRANSLIT[c] ?? c).join("");
+}
+function _catalogMatch(text: string, tokens: string[]): boolean {
+  const norm = text.toLowerCase();
+  const normT = _translit(text);
+  return tokens.every((tok) => {
+    const t = tok.toLowerCase();
+    const tT = _translit(tok);
+    return norm.includes(t) || normT.includes(tT) || norm.includes(tT) || normT.includes(t);
+  });
+}
 
 const PLACE_LABELS: Record<string, string> = {
   "1": "1 место",
@@ -347,12 +365,14 @@ export default function DraftPage() {
     });
   };
 
-  const filteredCatalog = addQuery.trim().length >= 1
-    ? catalog.filter((c) =>
-        c.name.toLowerCase().includes(addQuery.toLowerCase()) ||
-        (c.line ?? "").toLowerCase().includes(addQuery.toLowerCase())
-      ).slice(0, 15)
-    : [];
+  const filteredCatalog = useMemo(() => {
+    const q = addQuery.trim();
+    if (q.length < 1) return [];
+    const tokens = q.split(/\s+/);
+    return catalog
+      .filter((c) => _catalogMatch(c.name, tokens) || _catalogMatch(c.line ?? "", tokens))
+      .slice(0, 15);
+  }, [addQuery, catalog]);
 
   if (loading) return <div className="text-center py-20 text-luxe-grey-mid text-sm tracking-widest uppercase">Загрузка...</div>;
   if (!event) return <div className="text-center py-20 text-black/40">Мероприятие не найдено</div>;
