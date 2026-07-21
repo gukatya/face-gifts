@@ -13,9 +13,11 @@ const NOMINATION_OPTIONS = [
   "Стрелка с растушёвкой",
   "Ареола",
   "Перекрытие бровей",
+  "SMP (Скальп микропигментация)",
 ];
 
 const EMPTY_NOM: Nomination = { name: "", place1: 1, place2: 1, place3: 1 };
+const EMPTY_CUSTOM_NOM: Nomination = { name: "", place1: 1, place2: 1, place3: 1, is_custom: true };
 
 const defaultForm: EventCreate = {
   name: "",
@@ -518,9 +520,18 @@ export default function NewEventPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-gray-800">Номинации</h3>
-              <button className="btn-secondary text-xs" onClick={addNom}>
-                + Добавить номинацию
-              </button>
+              <div className="flex gap-2">
+                <button className="btn-secondary text-xs" onClick={addNom}>
+                  + Добавить
+                </button>
+                <button
+                  className="btn-secondary text-xs"
+                  onClick={() => update({ nominations: [...form.nominations, { ...EMPTY_CUSTOM_NOM }] })}
+                  title="Номинация с произвольным названием — подарки заполняются вручную"
+                >
+                  + Свободная
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -528,16 +539,25 @@ export default function NewEventPage() {
                 <div key={i} className="border border-black/8 rounded-xl p-3 bg-white/40">
                   <div className="flex items-start gap-2">
                     <div className="flex-1">
-                      <select
-                        className="input mb-2"
-                        value={nom.name}
-                        onChange={(e) => updateNom(i, { name: e.target.value })}
-                      >
-                        <option value="">— выберите номинацию —</option>
-                        {NOMINATION_OPTIONS.map((o) => (
-                          <option key={o}>{o}</option>
-                        ))}
-                      </select>
+                      {nom.is_custom ? (
+                        <input
+                          className="input mb-2"
+                          placeholder="Название номинации"
+                          value={nom.name}
+                          onChange={(e) => updateNom(i, { name: e.target.value })}
+                        />
+                      ) : (
+                        <select
+                          className="input mb-2"
+                          value={nom.name}
+                          onChange={(e) => updateNom(i, { name: e.target.value })}
+                        >
+                          <option value="">— выберите номинацию —</option>
+                          {NOMINATION_OPTIONS.map((o) => (
+                            <option key={o}>{o}</option>
+                          ))}
+                        </select>
+                      )}
                       <div className="grid grid-cols-3 gap-2">
                         {([1, 2, 3] as const).map((place) => (
                           <div key={place}>

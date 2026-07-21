@@ -367,6 +367,30 @@ def seed_collaboration_items(db: Session) -> dict:
     return {"collab_sets_added": sets_added, "pigments_promoted": promoted}
 
 
+_EXTRA_NOMINATIONS = [
+    {
+        "name": "SMP (Скальп микропигментация)",
+        "zone": "Скальп",
+        "method": "Аппаратная",
+        "pigment_lines": None,
+        "gift_description": None,
+        "frequency": None,
+        "notes": "Пигменты для SMP — уточняются",
+    },
+]
+
+
+def seed_extra_nominations(db: Session) -> int:
+    count = 0
+    for data in _EXTRA_NOMINATIONS:
+        existing = db.query(Nomination).filter(Nomination.name == data["name"]).first()
+        if not existing:
+            db.add(Nomination(**data))
+            count += 1
+    db.commit()
+    return count
+
+
 def seed_all(db: Session) -> dict:
     result = {
         "pigments": seed_pigments(db),
@@ -375,6 +399,7 @@ def seed_all(db: Session) -> dict:
         "mini_pigments": seed_mini_pigments(db),
         "consumables": seed_consumables(db),
         "nominations": seed_nominations(db),
+        "extra_nominations": seed_extra_nominations(db),
     }
     result.update(seed_collaboration_items(db))
     return result

@@ -483,17 +483,26 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
 
     for nom in nominations:
         nom_name = nom.get("name", "Универсальный")
+        is_custom = bool(nom.get("is_custom"))
         for place_key, place_label in [("place1", "1"), ("place2", "2"), ("place3", "3")]:
             count = nom.get(place_key, 0)
             if count > 0:
-                place_budget = place_budgets[place_label] if place_budgets else None
-                data = _build_set_for_place(
-                    db, nom_name, place_label, level, region, country, warehouse,
-                    fitz_min, fitz_max, budget=place_budget, variant=variant,
-                )
-                gs = GiftSet(event_id=event.id, nomination_name=nom_name,
-                             place=place_label, level=level,
-                             items=data["items"], total_price=data["total_price"])
+                if is_custom:
+                    # Свободная номинация — пустой набор, менеджер заполняет вручную
+                    gs = GiftSet(
+                        event_id=event.id, nomination_name=nom_name,
+                        place=place_label, level=level,
+                        items=[], total_price=0,
+                    )
+                else:
+                    place_budget = place_budgets[place_label] if place_budgets else None
+                    data = _build_set_for_place(
+                        db, nom_name, place_label, level, region, country, warehouse,
+                        fitz_min, fitz_max, budget=place_budget, variant=variant,
+                    )
+                    gs = GiftSet(event_id=event.id, nomination_name=nom_name,
+                                 place=place_label, level=level,
+                                 items=data["items"], total_price=data["total_price"])
                 db.add(gs)
                 sets.append(gs)
 

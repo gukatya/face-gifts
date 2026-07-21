@@ -3,6 +3,7 @@ export interface Nomination {
   place1: number;
   place2: number;
   place3: number;
+  is_custom?: boolean;
 }
 
 export interface EventCreate {
