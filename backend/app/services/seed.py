@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from ..models import Pigment, Consumable, Nomination
+from ..models import Pigment, Consumable, Nomination, PigmentSettings
 
 
 def _next_pigment_number(db: Session) -> int:
@@ -303,8 +303,65 @@ def seed_nominations(db: Session) -> int:
     return count
 
 
+KOSKO_SET_NAME = "FACE x MARIA KOSKO"
+_KOSKO_LIP_SHADES = ["Тауп", "Мусс", "Брауни", "Крем"]
+
+
+def seed_collaboration_items(db: Session) -> dict:
+    """Добавляет сет FACE x MARIA KOSKO и ставит продвижение губным оттенкам коллаборации."""
+    from sqlalchemy import func as sqlfunc
+
+    sets_added = 0
+    existing_set = db.query(Consumable).filter(Consumable.name == KOSKO_SET_NAME).first()
+    if not existing_set:
+        max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
+        c = Consumable(
+            number=max_num + 1,
+            name=KOSKO_SET_NAME,
+            category="Сеты",
+            zone="Губы",
+            price_ru=10990.0,
+            price_eu=None,
+            has_mini=False,
+            gift_priority="высокий",
+            notes="Коллаборация FACE x Maria Kosko: пигменты Тауп, Мусс, Брауни, Крем + 4 тинта для губ",
+        )
+        db.add(c)
+        sets_added += 1
+    db.commit()
+
+    promoted = 0
+    for name in _KOSKO_LIP_SHADES:
+        pig = (
+            db.query(Pigment)
+            .filter(
+                Pigment.name == name,
+                Pigment.zone == "Губы",
+                Pigment.is_mini == False,  # noqa: E712
+                Pigment.volume_ml == "6мл",
+            )
+            .first()
+        )
+        if not pig:
+            continue
+        settings = (
+            db.query(PigmentSettings)
+            .filter(PigmentSettings.pigment_id == pig.id, PigmentSettings.region == None)  # noqa: E711
+            .first()
+        )
+        if not settings:
+            db.add(PigmentSettings(pigment_id=pig.id, region=None, is_promoted=True))
+            promoted += 1
+        elif not settings.is_promoted:
+            settings.is_promoted = True
+            promoted += 1
+    db.commit()
+
+    return {"collab_sets_added": sets_added, "pigments_promoted": promoted}
+
+
 def seed_all(db: Session) -> dict:
-    return {
+    result = {
         "pigments": seed_pigments(db),
         "line_renames": seed_normalize_lines(db),
         "volume_tiers": seed_pigment_volume_tiers(db),
@@ -312,3 +369,5 @@ def seed_all(db: Session) -> dict:
         "consumables": seed_consumables(db),
         "nominations": seed_nominations(db),
     }
+    result.update(seed_collaboration_items(db))
+    return result

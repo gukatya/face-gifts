@@ -183,11 +183,15 @@ def _get_grand_prix_sets(db: Session, country: str) -> list:
     if brow_set:
         sets.append(brow_set)
 
-    # Губной сет
-    lip_set = db.query(Consumable).filter(
-        Consumable.category == "Сеты",
-        Consumable.name.ilike("%FACE AND THE CITY%"),
-    ).first()
+    # Губной сет: FACE x MARIA KOSKO в приоритете, затем FACE AND THE CITY
+    lip_set = None
+    for kw in ["%MARIA KOSKO%", "%FACE AND THE CITY%"]:
+        lip_set = db.query(Consumable).filter(
+            Consumable.category == "Сеты",
+            Consumable.name.ilike(kw),
+        ).first()
+        if lip_set:
+            break
     if lip_set:
         sets.append(lip_set)
 
@@ -206,7 +210,7 @@ def _get_giveaway_set(db: Session, country: str):
         if s:
             return s
 
-    for keyword in ["%Minerals%", "%FACE AND THE CITY%"]:
+    for keyword in ["%Minerals%", "%MARIA KOSKO%", "%FACE AND THE CITY%"]:
         s = db.query(Consumable).filter(
             Consumable.category == "Сеты",
             Consumable.name.ilike(keyword),
