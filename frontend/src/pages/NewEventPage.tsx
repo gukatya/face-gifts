@@ -423,79 +423,82 @@ export default function NewEventPage() {
       {/* STEP 2 */}
       {step === 2 && (
         <div className="card space-y-4">
-          {/* Гран-при */}
-          <div className="flex items-center justify-between py-2 border-b border-black/6">
-            <span className="text-sm font-medium text-gray-700">Гран-при</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
-                onClick={() => update({ grand_prix_count: Math.max(0, form.grand_prix_count - 1) })}
-                disabled={form.grand_prix_count === 0}
-              >
-                −
-              </button>
-              <span className="text-sm font-medium w-6 text-center">{form.grand_prix_count}</span>
-              <button
-                type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
-                onClick={() => update({ grand_prix_count: Math.min(3, form.grand_prix_count + 1) })}
-                disabled={form.grand_prix_count >= 3}
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {/* Розыгрыш */}
-          <div className="py-2 border-b border-black/6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Розыгрыш</span>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 accent-black"
-                  checked={form.giveaways_count > 0}
-                  onChange={(e) => update({ giveaways_count: e.target.checked ? 1 : 0 })}
-                />
-                <span className="text-sm text-gray-600">Есть</span>
-              </label>
-            </div>
-            {form.giveaways_count > 0 && (
-              <div className="mt-3 pl-1 space-y-3">
-                <div className="flex items-center gap-3">
-                  <label className="text-sm text-gray-600 w-36">Количество подарков:</label>
-                  <input
-                    type="number"
-                    min={1}
-                    className="input w-20 text-center"
-                    value={form.giveaways_count}
-                    onChange={(e) => update({ giveaways_count: Math.max(1, Number(e.target.value)) })}
-                    onFocus={(e) => e.target.select()}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  {(["одинаковые", "разные"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      className={`px-4 py-1.5 text-sm rounded-full border transition-all ${
-                        form.giveaway_mode === mode
-                          ? "border-luxe-black bg-luxe-black text-white"
-                          : "border-luxe-silver bg-white/70 text-black/60 hover:border-black/40"
-                      }`}
-                      onClick={() => update({ giveaway_mode: mode })}
-                    >
-                      {mode === "одинаковые" ? "Одинаковые" : "Разные"}
-                    </button>
-                  ))}
-                  {form.giveaway_mode === "разные" && (
-                    <span className="text-xs text-black/30 self-center">разные наборы для каждого</span>
-                  )}
+          {/* Гран-при + Розыгрыш — скрыты при "только участникам" */}
+          {!onlyParticipants && (
+            <>
+              <div className="flex items-center justify-between py-2 border-b border-black/6">
+                <span className="text-sm font-medium text-gray-700">Гран-при</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
+                    onClick={() => update({ grand_prix_count: Math.max(0, form.grand_prix_count - 1) })}
+                    disabled={form.grand_prix_count === 0}
+                  >
+                    −
+                  </button>
+                  <span className="text-sm font-medium w-6 text-center">{form.grand_prix_count}</span>
+                  <button
+                    type="button"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-black/15 bg-white/70 text-black/70 hover:bg-white disabled:opacity-30 text-base font-bold"
+                    onClick={() => update({ grand_prix_count: Math.min(3, form.grand_prix_count + 1) })}
+                    disabled={form.grand_prix_count >= 3}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className="py-2 border-b border-black/6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Розыгрыш</span>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-black"
+                      checked={form.giveaways_count > 0}
+                      onChange={(e) => update({ giveaways_count: e.target.checked ? 1 : 0 })}
+                    />
+                    <span className="text-sm text-gray-600">Есть</span>
+                  </label>
+                </div>
+                {form.giveaways_count > 0 && (
+                  <div className="mt-3 pl-1 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="text-sm text-gray-600 w-36">Количество подарков:</label>
+                      <input
+                        type="number"
+                        min={1}
+                        className="input w-20 text-center"
+                        value={form.giveaways_count}
+                        onChange={(e) => update({ giveaways_count: Math.max(1, Number(e.target.value)) })}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      {(["одинаковые", "разные"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={`px-4 py-1.5 text-sm rounded-full border transition-all ${
+                            form.giveaway_mode === mode
+                              ? "border-luxe-black bg-luxe-black text-white"
+                              : "border-luxe-silver bg-white/70 text-black/60 hover:border-black/40"
+                          }`}
+                          onClick={() => update({ giveaway_mode: mode })}
+                        >
+                          {mode === "одинаковые" ? "Одинаковые" : "Разные"}
+                        </button>
+                      ))}
+                      {form.giveaway_mode === "разные" && (
+                        <span className="text-xs text-black/30 self-center">разные наборы для каждого</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Участники */}
           {form.recipients.includes("участники") && (
