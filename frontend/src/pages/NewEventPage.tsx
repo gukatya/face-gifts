@@ -268,7 +268,7 @@ export default function NewEventPage() {
     form.giveaways_count;
 
   const onlyParticipants = form.recipients === "только участникам";
-  const hasParticipants = form.recipients.includes("участники");
+  const hasParticipants = form.recipients.includes("участники") || onlyParticipants;
 
   // sliderValue = WINNERS budget only.
   // participants are budgeted separately (form.participants_budget × form.participants_count).
