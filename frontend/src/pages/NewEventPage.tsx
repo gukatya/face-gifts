@@ -501,7 +501,7 @@ export default function NewEventPage() {
           )}
 
           {/* Участники */}
-          {form.recipients.includes("участники") && (
+          {hasParticipants && (
             <div className="flex items-center justify-between py-2 border-b border-black/6">
               <span className="text-sm font-medium text-gray-700">Участники</span>
               <div className="flex items-center gap-2">
