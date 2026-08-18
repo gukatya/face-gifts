@@ -447,6 +447,8 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
     warehouse = event.warehouse or "Россия"
     level = event.level or "Нормальный"
     nominations = event.nominations_data or []
+    recipients = getattr(event, "recipients", "победители + участники") or "победители + участники"
+    only_participants = recipients == "только участникам"
 
     # Compute place budgets if total_budget is set
     place_budgets = None
@@ -465,6 +467,8 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
     sets = []
 
     gp_count = getattr(event, "grand_prix_count", 0) or 0
+    if only_participants:
+        gp_count = 0  # игнорируем победителей
     for gp_idx in range(gp_count):
         if gp_count == 1:
             gp_name = "Гран-при"
@@ -481,7 +485,7 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
         db.add(gs)
         sets.append(gs)
 
-    for nom in nominations:
+    for nom in ([] if only_participants else nominations):
         nom_name = nom.get("name", "Универсальный")
         is_custom = bool(nom.get("is_custom"))
         for place_key, place_label in [("place1", "1"), ("place2", "2"), ("place3", "3")]:
@@ -506,7 +510,7 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
                 db.add(gs)
                 sets.append(gs)
 
-    if event.giveaways_count > 0:
+    if event.giveaways_count > 0 and not only_participants:
         giveaway_mode = getattr(event, "giveaway_mode", None) or "одинаковые"
         giveaway_budget = place_budgets["розыгрыш"] if place_budgets else None
         if giveaway_mode == "разные" and event.giveaways_count > 1:
@@ -532,7 +536,6 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
             db.add(gs)
             sets.append(gs)
 
-    recipients = getattr(event, "recipients", "победители + участники") or "победители + участники"
     if event.participants_count > 0 and recipients != "только победители":
         participants_use_certificate = getattr(event, "participants_use_certificate", False)
         cert_value = getattr(event, "participants_budget", None) or 500
