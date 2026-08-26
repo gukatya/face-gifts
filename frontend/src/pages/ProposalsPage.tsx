@@ -378,19 +378,6 @@ function ProposalCard({ proposal, onDecide, onEdit, onDelete, onOpenChat }: {
           </div>
         </div>
         <div className="flex gap-1 shrink-0">
-          {/* Chat button */}
-          <button
-            className="relative text-black/30 hover:text-blue-500 transition-colors text-sm px-1.5 py-1"
-            onClick={() => onOpenChat(proposal)}
-            title="Переписка"
-          >
-            💬
-            {hasMessages && (
-              <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
-                {proposal.messages_count > 9 ? "9+" : proposal.messages_count}
-              </span>
-            )}
-          </button>
           <button className="text-black/25 hover:text-black/60 transition-colors text-xs px-1.5 py-1" onClick={() => onEdit(proposal)} title="Редактировать">✏</button>
           <button className="text-black/25 hover:text-red-500 transition-colors text-xs px-1.5 py-1" onClick={() => onDelete(proposal)} title="Удалить">×</button>
         </div>
@@ -442,34 +429,47 @@ function ProposalCard({ proposal, onDecide, onEdit, onDelete, onOpenChat }: {
       )}
 
       {/* Actions */}
-      {(isNew || isChat) && (
-        <div className="flex gap-2 pt-1 border-t border-black/5">
-          <button
-            className="btn-primary text-sm py-1.5 flex-1"
-            onClick={() => onDecide(proposal, "approved")}
-          >
-            ✓ Участвуем
-          </button>
-          <button
-            className="btn-secondary text-sm py-1.5 flex-1 !text-red-500 !border-red-200 hover:!bg-red-50"
-            onClick={() => onDecide(proposal, "rejected")}
-          >
-            ✗ Пропустить
-          </button>
-        </div>
-      )}
+      <div className="flex flex-col gap-2 pt-1 border-t border-black/5">
+        {(isNew || isChat) && (
+          <div className="flex gap-2">
+            <button
+              className="btn-primary text-sm py-1.5 flex-1"
+              onClick={() => onDecide(proposal, "approved")}
+            >
+              ✓ Участвуем
+            </button>
+            <button
+              className="btn-secondary text-sm py-1.5 flex-1 !text-red-500 !border-red-200 hover:!bg-red-50"
+              onClick={() => onDecide(proposal, "rejected")}
+            >
+              ✗ Пропустить
+            </button>
+          </div>
+        )}
 
-      {/* Approved: link to create event */}
-      {proposal.status === "approved" && (
-        <div className="pt-1 border-t border-black/5">
+        {/* Chat button — always visible */}
+        <button
+          className="relative w-full btn-secondary text-sm py-1.5 flex items-center justify-center gap-2"
+          onClick={() => onOpenChat(proposal)}
+        >
+          <span>💬 Переписка</span>
+          {hasMessages && (
+            <span className="bg-blue-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+              {proposal.messages_count}
+            </span>
+          )}
+        </button>
+
+        {/* Approved: link to create event */}
+        {proposal.status === "approved" && (
           <a
             href={`/events/new?from_proposal=${proposal.id}&name=${encodeURIComponent(proposal.name)}&city=${encodeURIComponent(proposal.city ?? "")}`}
-            className="btn-secondary text-sm py-1.5 inline-block"
+            className="btn-secondary text-sm py-1.5 inline-block text-center"
           >
             + Создать мероприятие
           </a>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
