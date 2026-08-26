@@ -1,4 +1,4 @@
-import type { Event, EventCreate, GiftSet, CalcLevels, Nomination, MonthlyBudget, DashboardStats, Proposal, ProposalCreate } from "../types";
+import type { Event, EventCreate, GiftSet, CalcLevels, Nomination, MonthlyBudget, DashboardStats, Proposal, ProposalCreate, ProposalMessage } from "../types";
 import type {
   RegionRankingOut,
   RegionRankingItem,
@@ -155,6 +155,12 @@ export const api = {
         body: JSON.stringify({ decision, comment: comment ?? null }),
       }),
     delete: (id: number) => request<void>(`/proposals/${id}`, { method: "DELETE" }),
+    getMessages: (id: number) => request<ProposalMessage[]>(`/proposals/${id}/messages`),
+    sendMessage: (id: number, author_label: string, text: string) =>
+      request<ProposalMessage>(`/proposals/${id}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ author_label, text }),
+      }),
   },
   auth: {
     login: (password: string) =>

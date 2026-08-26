@@ -156,6 +156,21 @@ class Proposal(Base):
     decided_at    = Column(DateTime, nullable=True)
     created_at    = Column(DateTime, default=datetime.utcnow)
 
+    messages = relationship("ProposalMessage", back_populates="proposal", order_by="ProposalMessage.created_at")
+
+
+class ProposalMessage(Base):
+    """Chat message thread on a proposal — visible to manager and employees."""
+    __tablename__ = "proposal_messages"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    proposal_id  = Column(Integer, ForeignKey("proposals.id", ondelete="CASCADE"), nullable=False)
+    author_label = Column(String(100), nullable=False)  # display name of sender
+    text         = Column(Text, nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    proposal = relationship("Proposal", back_populates="messages")
+
 
 class ConsumableSettings(Base):
     """Per-region settings for consumables."""

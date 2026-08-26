@@ -488,6 +488,8 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
     for nom in ([] if only_participants else nominations):
         nom_name = nom.get("name", "Универсальный")
         is_custom = bool(nom.get("is_custom"))
+        if is_custom and not nom_name.strip():
+            continue
         for place_key, place_label in [("place1", "1"), ("place2", "2"), ("place3", "3")]:
             count = nom.get(place_key, 0)
             if count > 0:

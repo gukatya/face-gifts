@@ -303,7 +303,7 @@ def export_event_organizer(event: Event, sets: list[GiftSet]) -> bytes:
 
             _c(ws, row, 4, sku_type, bg=bg, color="555555")
             _c(ws, row, 5, name, bg=bg)
-            _c(ws, row, 6, qty if qty > 1 else "", align="center", bg=bg)
+            _c(ws, row, 6, qty, align="center", bg=bg)
             ws.row_dimensions[row].height = 16
             row += 1
 

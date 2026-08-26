@@ -98,12 +98,21 @@ export interface ProposalCreate {
   raw_text?: string | null;
 }
 
+export interface ProposalMessage {
+  id: number;
+  proposal_id: number;
+  author_label: string;
+  text: string;
+  created_at: string;
+}
+
 export interface Proposal extends ProposalCreate {
   id: number;
-  status: "new" | "approved" | "rejected";
+  status: "new" | "chat" | "approved" | "rejected";
   decision_comment?: string | null;
   decided_at?: string | null;
   created_at: string;
+  messages_count: number;
 }
 
 export interface GiftItem {
