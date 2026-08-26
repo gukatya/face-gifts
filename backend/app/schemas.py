@@ -38,10 +38,10 @@ class EventOut(BaseModel):
     date: str
     country: str
     region: str
-    warehouse: str
+    warehouse: str = "Россия"
     recipients: str = "только победители"
-    mode: str
-    level: str
+    mode: str = "по номинациям"
+    level: str = "Нормальный"
     grand_prix_count: int = 0
     has_trade_booth: bool = False
     has_speaker_nonstop: bool = False
