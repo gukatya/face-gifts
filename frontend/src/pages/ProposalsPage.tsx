@@ -378,8 +378,8 @@ function ProposalCard({ proposal, onDecide, onEdit, onDelete, onOpenChat }: {
           </div>
         </div>
         <div className="flex gap-1 shrink-0">
-          <button className="text-black/25 hover:text-black/60 transition-colors text-xs px-1.5 py-1" onClick={() => onEdit(proposal)} title="Редактировать">✏</button>
-          <button className="text-black/25 hover:text-red-500 transition-colors text-xs px-1.5 py-1" onClick={() => onDelete(proposal)} title="Удалить">×</button>
+          <button className="text-black/50 hover:text-black transition-colors text-sm px-2 py-1 rounded-lg hover:bg-black/5" onClick={() => onEdit(proposal)} title="Редактировать">✏️</button>
+          <button className="text-black/50 hover:text-red-500 transition-colors text-sm px-2 py-1 rounded-lg hover:bg-red-50" onClick={() => onDelete(proposal)} title="Удалить">✕</button>
         </div>
       </div>
 
