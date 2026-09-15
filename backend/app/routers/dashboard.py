@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Optional
 
 from ..database import get_db
-from ..models import Event, GiftSet, MonthlyBudget
+from ..models import Event, GiftSet, MonthlyBudget, Pigment, Consumable
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -154,9 +154,10 @@ def get_stats(db: Session = Depends(get_db)):
 def items_report(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
-    sku_type: Optional[str] = Query(None),   # pigment / consumable / sample / certificate / all
-    warehouse: Optional[str] = Query(None),  # Россия / Европа
-    event_type: Optional[str] = Query(None), # чемпионат / мастер-класс / etc — comma-separated
+    sku_type: Optional[str] = Query(None),      # pigment / consumable / sample / certificate / all
+    category: Optional[str] = Query(None),      # consumable sub-category (Сеты / Сэмплы / etc.)
+    warehouse: Optional[str] = Query(None),     # Россия / Европа
+    event_type: Optional[str] = Query(None),    # comma-separated event types
     db: Session = Depends(get_db),
 ):
     """Items shipment report for a custom date range with filters."""
@@ -172,8 +173,11 @@ def items_report(
 
     events = q.all()
 
-    # filter by shipped_date range
-    result: dict = {}  # key = "sku_type:sku_id" → {name, sku_type, qty, total_price}
+    # Build pigment & consumable lookup for enrichment
+    pigments_map = {p.id: p for p in db.query(Pigment).all()}
+    consumables_map = {c.id: c for c in db.query(Consumable).all()}
+
+    result: dict = {}  # key → {name, sku_type, category, volume_ml, qty, total_price}
 
     for ev in events:
         shipped = ev.shipped_date or ""
@@ -189,11 +193,32 @@ def items_report(
                 t = item.get("sku_type", "")
                 if sku_type and sku_type != "all" and t != sku_type:
                     continue
-                key = f"{t}:{item.get('sku_id')}"
+
+                # Enrich with catalog data
+                item_category = item.get("category", "")
+                item_volume = item.get("volume_ml", "")
+                if t == "pigment":
+                    pig = pigments_map.get(item.get("sku_id"))
+                    if pig:
+                        item_volume = pig.volume_ml or ""
+                elif t in ("consumable", "sample"):
+                    con = consumables_map.get(item.get("sku_id"))
+                    if con:
+                        item_category = con.category or item_category
+
+                # Filter by consumable category
+                if category and t in ("consumable", "sample") and item_category != category:
+                    continue
+
+                # For pigments, use (name + volume) as key so 6мл vs 12мл are separate rows
+                sku_id = item.get("sku_id")
+                key = f"{t}:{sku_id}:{item_volume}" if (t == "pigment" and item_volume) else f"{t}:{sku_id}"
                 if key not in result:
                     result[key] = {
                         "name": item.get("name", ""),
                         "sku_type": t,
+                        "category": item_category,
+                        "volume_ml": item_volume,
                         "qty": 0,
                         "total_price": 0.0,
                     }
@@ -205,4 +230,51 @@ def items_report(
     items = sorted(result.values(), key=lambda x: -x["qty"])
     grand_total = sum(i["total_price"] for i in items)
 
-    return {"items": items, "grand_total": grand_total}
+    # Collect distinct consumable categories present in results
+    categories = sorted({i["category"] for i in items if i["sku_type"] in ("consumable", "sample") and i["category"]})
+
+    return {"items": items, "grand_total": grand_total, "consumable_categories": categories}
+
+
+@router.get("/geography")
+def geography_report(
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    event_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Geography stats with optional filters."""
+    q = db.query(Event).filter(Event.deleted_at.is_(None))
+
+    if event_type:
+        types = [t.strip() for t in event_type.split(",") if t.strip()]
+        if types:
+            q = q.filter(Event.event_type.in_(types))
+
+    events = q.all()
+
+    geo: dict = defaultdict(lambda: {"events_count": 0, "total_cost": 0, "countries": set()})
+
+    for ev in events:
+        # Filter by shipped_date if provided, fallback to event date
+        ref_date = ev.shipped_date or ev.date or ""
+        if date_from and ref_date < date_from:
+            continue
+        if date_to and ref_date > date_to:
+            continue
+
+        region = ev.region or "Прочее"
+        geo[region]["events_count"] += 1
+        geo[region]["total_cost"] += ev.total_budget or 0
+        geo[region]["countries"].add(ev.country or "")
+
+    return [
+        {
+            "region": region,
+            "events_count": data["events_count"],
+            "total_cost": data["total_cost"],
+            "countries": sorted(c for c in data["countries"] if c),
+        }
+        for region, data in sorted(geo.items(), key=lambda x: -x[1]["events_count"])
+        if data["events_count"] > 0
+    ]

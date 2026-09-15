@@ -187,6 +187,7 @@ export const api = {
       date_from?: string;
       date_to?: string;
       sku_type?: string;
+      category?: string;
       warehouse?: string;
       event_type?: string;
     }) => {
@@ -194,11 +195,28 @@ export const api = {
       if (params.date_from) p.set("date_from", params.date_from);
       if (params.date_to) p.set("date_to", params.date_to);
       if (params.sku_type) p.set("sku_type", params.sku_type);
+      if (params.category) p.set("category", params.category);
       if (params.warehouse) p.set("warehouse", params.warehouse);
       if (params.event_type) p.set("event_type", params.event_type);
       const qs = p.toString() ? `?${p.toString()}` : "";
-      return request<{ items: { name: string; sku_type: string; qty: number; total_price: number }[]; grand_total: number }>(
-        `/dashboard/items-report${qs}`
+      return request<{
+        items: { name: string; sku_type: string; category: string; volume_ml: string; qty: number; total_price: number }[];
+        grand_total: number;
+        consumable_categories: string[];
+      }>(`/dashboard/items-report${qs}`);
+    },
+    geography: (params: {
+      date_from?: string;
+      date_to?: string;
+      event_type?: string;
+    }) => {
+      const p = new URLSearchParams();
+      if (params.date_from) p.set("date_from", params.date_from);
+      if (params.date_to) p.set("date_to", params.date_to);
+      if (params.event_type) p.set("event_type", params.event_type);
+      const qs = p.toString() ? `?${p.toString()}` : "";
+      return request<{ region: string; events_count: number; total_cost: number; countries: string[] }[]>(
+        `/dashboard/geography${qs}`
       );
     },
   },

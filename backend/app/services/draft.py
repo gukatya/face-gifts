@@ -127,6 +127,7 @@ def _item_from_pigment(p: Pigment, qty: int = 1) -> dict:
         "name": name,
         "line": p.line,
         "zone": p.zone,
+        "volume_ml": p.volume_ml,
         "qty": qty,
         "price": p.price_ru or 0,
     }

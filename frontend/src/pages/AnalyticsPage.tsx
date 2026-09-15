@@ -231,10 +231,23 @@ export default function AnalyticsPage() {
   const [itemsDateFrom, setItemsDateFrom] = useState<string>("");
   const [itemsDateTo, setItemsDateTo] = useState<string>("");
   const [itemsSkuType, setItemsSkuType] = useState<string>("all");
+  const [itemsCategory, setItemsCategory] = useState<string>("");
   const [itemsWarehouse, setItemsWarehouse] = useState<string>("");
   const [itemsEventTypes, setItemsEventTypes] = useState<string[]>([]);
-  const [itemsReport, setItemsReport] = useState<{ items: { name: string; sku_type: string; qty: number; total_price: number }[]; grand_total: number } | null>(null);
+  const [itemsSearch, setItemsSearch] = useState<string>("");
+  const [itemsReport, setItemsReport] = useState<{
+    items: { name: string; sku_type: string; category: string; volume_ml: string; qty: number; total_price: number }[];
+    grand_total: number;
+    consumable_categories: string[];
+  } | null>(null);
   const [itemsLoading, setItemsLoading] = useState(false);
+
+  // Geography filters
+  const [geoDateFrom, setGeoDateFrom] = useState<string>("");
+  const [geoDateTo, setGeoDateTo] = useState<string>("");
+  const [geoEventTypes, setGeoEventTypes] = useState<string[]>([]);
+  const [geography, setGeography] = useState<{ region: string; events_count: number; total_cost: number; countries: string[] }[]>([]);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   // Calendar base month
   const [calBase, setCalBase] = useState<string>(addMonths(todayYm(), -1));
@@ -255,12 +268,24 @@ export default function AnalyticsPage() {
       date_from: itemsDateFrom || undefined,
       date_to: itemsDateTo || undefined,
       sku_type: itemsSkuType === "all" ? undefined : itemsSkuType,
+      category: itemsCategory || undefined,
       warehouse: itemsWarehouse || undefined,
       event_type: itemsEventTypes.length > 0 ? itemsEventTypes.join(",") : undefined,
     }).then(setItemsReport).finally(() => setItemsLoading(false));
-  }, [itemsDateFrom, itemsDateTo, itemsSkuType, itemsWarehouse, itemsEventTypes]);
+  }, [itemsDateFrom, itemsDateTo, itemsSkuType, itemsCategory, itemsWarehouse, itemsEventTypes]);
 
   useEffect(() => { loadItemsReport(); }, [loadItemsReport]);
+
+  const loadGeography = useCallback(() => {
+    setGeoLoading(true);
+    api.dashboard.geography({
+      date_from: geoDateFrom || undefined,
+      date_to: geoDateTo || undefined,
+      event_type: geoEventTypes.length > 0 ? geoEventTypes.join(",") : undefined,
+    }).then(setGeography).finally(() => setGeoLoading(false));
+  }, [geoDateFrom, geoDateTo, geoEventTypes]);
+
+  useEffect(() => { loadGeography(); }, [loadGeography]);
 
   const handleShip = async (id: number) => {
     await api.events.ship(id, shipDate);
@@ -285,7 +310,6 @@ export default function AnalyticsPage() {
 
   const upcoming_deadlines = stats?.upcoming_deadlines ?? [];
   const monthly_stats = stats?.monthly_stats ?? [];
-  const geography = stats?.geography ?? [];
 
   const calMonths = [calBase, addMonths(calBase, 1), addMonths(calBase, 2)];
 
@@ -561,14 +585,26 @@ export default function AnalyticsPage() {
             )}
           </div>
 
-          {/* Category + warehouse */}
+          {/* Search by name */}
+          <div>
+            <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Поиск по позиции</label>
+            <input
+              type="text"
+              className="input text-sm py-1.5 px-3 w-full sm:w-72"
+              placeholder="Например: Marshmallow, Анестезия..."
+              value={itemsSearch}
+              onChange={(e) => setItemsSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Category + sub-category + warehouse */}
           <div className="flex flex-wrap gap-3">
             <div>
-              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Категория</label>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Тип позиции</label>
               <select
                 className="input text-sm py-1.5 px-3"
                 value={itemsSkuType}
-                onChange={(e) => setItemsSkuType(e.target.value)}
+                onChange={(e) => { setItemsSkuType(e.target.value); setItemsCategory(""); }}
               >
                 <option value="all">Все позиции</option>
                 <option value="pigment">Только пигменты</option>
@@ -577,6 +613,22 @@ export default function AnalyticsPage() {
                 <option value="certificate">Сертификаты</option>
               </select>
             </div>
+            {(itemsSkuType === "consumable" || itemsSkuType === "sample" || itemsSkuType === "all") &&
+              (itemsReport?.consumable_categories ?? []).length > 0 && (
+              <div>
+                <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Подкатегория расходников</label>
+                <select
+                  className="input text-sm py-1.5 px-3"
+                  value={itemsCategory}
+                  onChange={(e) => setItemsCategory(e.target.value)}
+                >
+                  <option value="">Все подкатегории</option>
+                  {(itemsReport?.consumable_categories ?? []).map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Склад</label>
               <select
@@ -626,62 +678,78 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Results table */}
-        <div className="card overflow-hidden p-0">
-          {itemsLoading ? (
-            <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">Загрузка...</div>
-          ) : !itemsReport || itemsReport.items.length === 0 ? (
-            <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">
-              Нет отгруженных позиций по выбранным фильтрам
+        {(() => {
+          const searchLower = itemsSearch.toLowerCase();
+          const filtered = (itemsReport?.items ?? []).filter((item) =>
+            !itemsSearch || item.name.toLowerCase().includes(searchLower)
+          );
+          const filteredTotal = filtered.reduce((s, i) => s + i.total_price, 0);
+          const filteredQty = filtered.reduce((s, i) => s + i.qty, 0);
+          return (
+            <div className="card overflow-hidden p-0">
+              {itemsLoading ? (
+                <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">Загрузка...</div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">
+                  Нет позиций по выбранным фильтрам
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[560px]">
+                    <thead>
+                      <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
+                        <th className="text-left px-5 py-3 font-medium">#</th>
+                        <th className="text-left px-5 py-3 font-medium">Позиция</th>
+                        <th className="text-left px-4 py-3 font-medium">Детали</th>
+                        <th className="text-right px-5 py-3 font-medium">Кол-во</th>
+                        <th className="text-right px-5 py-3 font-medium">Сумма, ₽</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((item, i) => (
+                        <tr key={i} className="border-b border-black/5 hover:bg-black/5">
+                          <td className="px-5 py-2.5 text-black/30 text-xs">{i + 1}</td>
+                          <td className="px-5 py-2.5 font-medium text-luxe-black">{item.name}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              <span className="badge bg-black/10 text-black/50 text-xs">
+                                {item.sku_type === "pigment" ? "Пигмент"
+                                  : item.sku_type === "sample" ? "Мини-сэт"
+                                  : item.sku_type === "consumable" ? "Расходник"
+                                  : "Сертификат"}
+                              </span>
+                              {item.volume_ml && (
+                                <span className="badge bg-blue-50 text-blue-600 text-xs">{item.volume_ml}</span>
+                              )}
+                              {item.category && item.sku_type !== "pigment" && (
+                                <span className="badge bg-black/5 text-black/40 text-xs">{item.category}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-2.5 text-right font-black text-luxe-black">{item.qty}</td>
+                          <td className="px-5 py-2.5 text-right text-black/60">
+                            {item.total_price > 0 ? item.total_price.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-black/10 bg-black/5">
+                        <td colSpan={3} className="px-5 py-3 text-xs uppercase tracking-wider text-black/40 font-medium">
+                          Итого{itemsSearch ? ` (фильтр: «${itemsSearch}»)` : ""}
+                        </td>
+                        <td className="px-5 py-3 text-right font-black text-luxe-black">{filteredQty}</td>
+                        <td className="px-5 py-3 text-right font-black text-luxe-black">
+                          {filteredTotal > 0 ? filteredTotal.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " ₽" : "—"}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[480px]">
-                <thead>
-                  <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
-                    <th className="text-left px-5 py-3 font-medium">#</th>
-                    <th className="text-left px-5 py-3 font-medium">Позиция</th>
-                    <th className="text-left px-5 py-3 font-medium">Тип</th>
-                    <th className="text-right px-5 py-3 font-medium">Кол-во</th>
-                    <th className="text-right px-5 py-3 font-medium">Сумма, ₽</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemsReport.items.map((item, i) => (
-                    <tr key={i} className="border-b border-black/5 hover:bg-black/5">
-                      <td className="px-5 py-2.5 text-black/30 text-xs">{i + 1}</td>
-                      <td className="px-5 py-2.5 font-medium text-luxe-black">{item.name}</td>
-                      <td className="px-5 py-2.5">
-                        <span className="badge bg-black/10 text-black/50 text-xs">
-                          {item.sku_type === "pigment" ? "Пигмент"
-                            : item.sku_type === "sample" ? "Мини-сэт"
-                            : item.sku_type === "consumable" ? "Расходник"
-                            : "Сертификат"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-2.5 text-right font-black text-luxe-black">{item.qty}</td>
-                      <td className="px-5 py-2.5 text-right text-black/60">
-                        {item.total_price > 0 ? item.total_price.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-black/10 bg-black/5">
-                    <td colSpan={3} className="px-5 py-3 text-xs uppercase tracking-wider text-black/40 font-medium">Итого</td>
-                    <td className="px-5 py-3 text-right font-black text-luxe-black">
-                      {itemsReport.items.reduce((s, i) => s + i.qty, 0)}
-                    </td>
-                    <td className="px-5 py-3 text-right font-black text-luxe-black">
-                      {itemsReport.grand_total > 0
-                        ? itemsReport.grand_total.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " ₽"
-                        : "—"}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </div>
+          );
+        })()}
         <p className="text-xs text-black/30 mt-2 font-light">
           * Считаются позиции из отгруженных мероприятий за выбранный период. Сумма — цена позиции × количество.
         </p>
@@ -690,10 +758,71 @@ export default function AnalyticsPage() {
       {/* ── 5. Geography ── */}
       <section>
         <h2 className="section-title mb-4">По регионам</h2>
-        {geography.length === 0 ? (
-          <div className="card text-center py-8 text-black/30 text-xs tracking-widest uppercase">
-            Нет данных
+
+        {/* Geo filters */}
+        <div className="card mb-4 space-y-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата с</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5 px-3 w-40"
+                value={geoDateFrom}
+                onChange={(e) => setGeoDateFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">по</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5 px-3 w-40"
+                value={geoDateTo}
+                onChange={(e) => setGeoDateTo(e.target.value)}
+              />
+            </div>
+            {(geoDateFrom || geoDateTo) && (
+              <button
+                className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5"
+                onClick={() => { setGeoDateFrom(""); setGeoDateTo(""); }}
+              >
+                Сбросить
+              </button>
+            )}
           </div>
+          <div>
+            <label className="block text-xs text-black/40 mb-2 uppercase tracking-wider">Тип мероприятия</label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_EVENT_TYPES.map((t) => {
+                const active = geoEventTypes.includes(t);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setGeoEventTypes((prev) =>
+                      active ? prev.filter((x) => x !== t) : [...prev, t]
+                    )}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      active
+                        ? "bg-luxe-black text-white border-luxe-black"
+                        : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+              {geoEventTypes.length > 0 && (
+                <button className="text-xs px-2 py-1 text-black/30 hover:text-black/60" onClick={() => setGeoEventTypes([])}>
+                  Сбросить
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {geoLoading ? (
+          <div className="card text-center py-8 text-black/30 text-xs tracking-widest uppercase">Загрузка...</div>
+        ) : geography.length === 0 ? (
+          <div className="card text-center py-8 text-black/30 text-xs tracking-widest uppercase">Нет данных</div>
         ) : (
           <div className="card overflow-hidden p-0">
             <div className="overflow-x-auto">
@@ -721,10 +850,7 @@ export default function AnalyticsPage() {
                       </td>
                       <td className="px-4 sm:px-5 py-3 w-20 sm:w-32">
                         <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-luxe-black rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
+                          <div className="h-full bg-luxe-black rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                       </td>
                     </tr>
@@ -735,6 +861,9 @@ export default function AnalyticsPage() {
             </div>
           </div>
         )}
+        <p className="text-xs text-black/30 mt-2 font-light">
+          * Фильтрация по дате — по дате отгрузки (если указана) или дате мероприятия.
+        </p>
       </section>
     </div>
   );
