@@ -21,6 +21,8 @@ _MIGRATIONS = [
     "ALTER TABLE events ADD COLUMN shipped_date VARCHAR(20)",
     "ALTER TABLE pigments ADD COLUMN is_mini BOOLEAN DEFAULT 0",
     "ALTER TABLE pigments ADD COLUMN volume_ml VARCHAR(10)",
+    "ALTER TABLE events ADD COLUMN deleted_at TIMESTAMP",
+    "ALTER TABLE events ADD COLUMN delete_reason VARCHAR(50)",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:
