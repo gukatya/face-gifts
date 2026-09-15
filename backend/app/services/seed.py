@@ -1,14 +1,13 @@
-import pandas as pd
+from openpyxl import load_workbook
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from ..models import Pigment, Consumable, Nomination, PigmentSettings
+from pathlib import Path
 
 
 def _next_pigment_number(db: Session) -> int:
     return (db.query(func.max(Pigment.number)).scalar() or 0) + 1
 
-import os
-from pathlib import Path
 
 # Excel file lives in backend/data/ relative to this file's location
 _HERE = Path(__file__).parent.parent.parent  # backend/
@@ -16,10 +15,10 @@ XLSX_PATH = str(_HERE / "data" / "База_знаний_FACE_v7.xlsx")
 
 
 def _clean(val):
-    if pd.isna(val):
+    if val is None:
         return None
     s = str(val).strip()
-    return None if s in ("", "nan", "NaN") else s
+    return None if s in ("", "nan", "NaN", "None") else s
 
 
 def _bool_cell(val):
@@ -29,13 +28,28 @@ def _bool_cell(val):
     return s in ("✓", "да", "true", "True", "1")
 
 
+def _read_sheet(sheet_name: str, skip_rows: int):
+    """Read sheet rows skipping header rows; returns list of row value tuples."""
+    wb = load_workbook(XLSX_PATH, read_only=True, data_only=True)
+    ws = wb[sheet_name]
+    rows = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i < skip_rows:
+            continue
+        rows.append(row)
+    wb.close()
+    return rows
+
+
 def seed_pigments(db: Session) -> int:
-    df = pd.read_excel(XLSX_PATH, sheet_name="Пигменты", header=1)
-    df = df.dropna(subset=[df.columns[0]])
+    # header=1 → skip 2 rows (row 0 = skip, row 1 = header)
+    rows = _read_sheet("Пигменты", skip_rows=2)
     count = 0
-    for _, row in df.iterrows():
+    for row in rows:
+        if row[0] is None:
+            continue
         try:
-            num = int(row.iloc[0])
+            num = int(row[0])
         except (ValueError, TypeError):
             continue
         existing = db.query(Pigment).filter(Pigment.number == num).first()
@@ -43,21 +57,21 @@ def seed_pigments(db: Session) -> int:
             continue
         p = Pigment(
             number=num,
-            zone=_clean(row.iloc[1]),
-            line=_clean(row.iloc[2]),
-            name=_clean(row.iloc[3]),
-            temperature=_clean(row.iloc[4]),
-            saturation=_clean(row.iloc[5]),
-            role=_clean(row.iloc[6]),
-            fitzpatrick=_clean(row.iloc[7]),
-            is_corrector=_clean(row.iloc[8]) == "да",
-            geo_europe=_bool_cell(row.iloc[9]),
-            geo_asia=_bool_cell(row.iloc[10]),
-            priority=_clean(row.iloc[11]),
-            price_ru=float(row.iloc[12]) if pd.notna(row.iloc[12]) else None,
-            price_eu=float(row.iloc[13]) if pd.notna(row.iloc[13]) else None,
-            recommended_mixes=_clean(row.iloc[14]),
-            notes=_clean(row.iloc[15]),
+            zone=_clean(row[1]),
+            line=_clean(row[2]),
+            name=_clean(row[3]),
+            temperature=_clean(row[4]),
+            saturation=_clean(row[5]),
+            role=_clean(row[6]),
+            fitzpatrick=_clean(row[7]),
+            is_corrector=_clean(row[8]) == "да",
+            geo_europe=_bool_cell(row[9]),
+            geo_asia=_bool_cell(row[10]),
+            priority=_clean(row[11]),
+            price_ru=float(row[12]) if row[12] is not None else None,
+            price_eu=float(row[13]) if row[13] is not None else None,
+            recommended_mixes=_clean(row[14]),
+            notes=_clean(row[15]),
         )
         db.add(p)
         count += 1
@@ -66,19 +80,21 @@ def seed_pigments(db: Session) -> int:
 
 
 def seed_consumables(db: Session) -> int:
-    df = pd.read_excel(XLSX_PATH, sheet_name="Расходники и сеты", header=1)
-    df = df.dropna(subset=[df.columns[0]])
+    # header=1 → skip 2 rows
+    rows = _read_sheet("Расходники и сеты", skip_rows=2)
     count = 0
-    for _, row in df.iterrows():
+    for row in rows:
+        if row[0] is None:
+            continue
         try:
-            num = int(row.iloc[0])
+            num = int(row[0])
         except (ValueError, TypeError):
             continue
         existing = db.query(Consumable).filter(Consumable.number == num).first()
         if existing:
             continue
 
-        priority_raw = _clean(row.iloc[7])
+        priority_raw = _clean(row[7])
         if priority_raw:
             p = priority_raw.lower()
             if "высок" in p:
@@ -92,14 +108,14 @@ def seed_consumables(db: Session) -> int:
 
         c = Consumable(
             number=num,
-            name=_clean(row.iloc[1]),
-            category=_clean(row.iloc[2]),
-            zone=_clean(row.iloc[3]),
-            price_ru=float(row.iloc[4]) if pd.notna(row.iloc[4]) else None,
-            price_eu=float(row.iloc[5]) if pd.notna(row.iloc[5]) else None,
-            has_mini=_clean(row.iloc[6]) == "да",
+            name=_clean(row[1]),
+            category=_clean(row[2]),
+            zone=_clean(row[3]),
+            price_ru=float(row[4]) if row[4] is not None else None,
+            price_eu=float(row[5]) if row[5] is not None else None,
+            has_mini=_clean(row[6]) == "да",
             gift_priority=priority,
-            notes=_clean(row.iloc[8]),
+            notes=_clean(row[8]),
         )
         db.add(c)
         count += 1
@@ -278,11 +294,13 @@ def seed_pigment_volume_tiers(db: Session) -> int:
 
 
 def seed_nominations(db: Session) -> int:
-    df = pd.read_excel(XLSX_PATH, sheet_name="Номинации", header=2)
-    df = df.dropna(subset=[df.columns[0]])
+    # header=2 → skip 3 rows (rows 0,1 = skip, row 2 = header)
+    rows = _read_sheet("Номинации", skip_rows=3)
     count = 0
-    for _, row in df.iterrows():
-        name = _clean(row.iloc[0])
+    for row in rows:
+        if row[0] is None:
+            continue
+        name = _clean(row[0])
         if not name or name.startswith("Б.") or name.startswith("В.") or name.startswith("Использ") or name.startswith("Можно"):
             continue
         existing = db.query(Nomination).filter(Nomination.name == name).first()
@@ -290,12 +308,12 @@ def seed_nominations(db: Session) -> int:
             continue
         n = Nomination(
             name=name,
-            zone=_clean(row.iloc[1]),
-            method=_clean(row.iloc[2]),
-            pigment_lines=_clean(row.iloc[3]),
-            gift_description=_clean(row.iloc[4]),
-            frequency=_clean(row.iloc[5]),
-            notes=_clean(row.iloc[6]),
+            zone=_clean(row[1]),
+            method=_clean(row[2]),
+            pigment_lines=_clean(row[3]),
+            gift_description=_clean(row[4]),
+            frequency=_clean(row[5]),
+            notes=_clean(row[6]),
         )
         db.add(n)
         count += 1
