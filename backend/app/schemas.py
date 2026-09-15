@@ -56,11 +56,17 @@ class EventOut(BaseModel):
     gifts_sent: bool = False
     shipped_date: Optional[str] = None
     created_at: datetime
+    deleted_at: Optional[datetime] = None
+    delete_reason: Optional[str] = None
     total_budget: Optional[int] = None
     participants_budget: int = 500
     participants_use_certificate: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class DeleteEventPayload(BaseModel):
+    reason: str  # ошибка / отказ / напрямую
 
 
 class MonthlyBudgetIn(BaseModel):

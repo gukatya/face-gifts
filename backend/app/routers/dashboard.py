@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import date, timedelta
 from collections import defaultdict
+from typing import Optional
 
 from ..database import get_db
 from ..models import Event, GiftSet, MonthlyBudget
@@ -147,3 +148,61 @@ def get_stats(db: Session = Depends(get_db)):
         "geography": geo_stats,
         "upcoming_deadlines": deadlines,
     }
+
+
+@router.get("/items-report")
+def items_report(
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    sku_type: Optional[str] = Query(None),   # pigment / consumable / sample / certificate / all
+    warehouse: Optional[str] = Query(None),  # Россия / Европа
+    event_type: Optional[str] = Query(None), # чемпионат / мастер-класс / etc — comma-separated
+    db: Session = Depends(get_db),
+):
+    """Items shipment report for a custom date range with filters."""
+    q = db.query(Event).filter(Event.gifts_sent == True, Event.deleted_at.is_(None))
+
+    if warehouse:
+        q = q.filter(Event.warehouse == warehouse)
+
+    if event_type:
+        types = [t.strip() for t in event_type.split(",") if t.strip()]
+        if types:
+            q = q.filter(Event.event_type.in_(types))
+
+    events = q.all()
+
+    # filter by shipped_date range
+    result: dict = {}  # key = "sku_type:sku_id" → {name, sku_type, qty, total_price}
+
+    for ev in events:
+        shipped = ev.shipped_date or ""
+        if date_from and shipped < date_from:
+            continue
+        if date_to and shipped > date_to:
+            continue
+
+        sets = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
+        for gs in sets:
+            mult = _set_multiplier(gs, ev)
+            for item in (gs.items or []):
+                t = item.get("sku_type", "")
+                if sku_type and sku_type != "all" and t != sku_type:
+                    continue
+                key = f"{t}:{item.get('sku_id')}"
+                if key not in result:
+                    result[key] = {
+                        "name": item.get("name", ""),
+                        "sku_type": t,
+                        "qty": 0,
+                        "total_price": 0.0,
+                    }
+                qty = item.get("qty", 1) * mult
+                price = item.get("price", 0) * qty
+                result[key]["qty"] += qty
+                result[key]["total_price"] += price
+
+    items = sorted(result.values(), key=lambda x: -x["qty"])
+    grand_total = sum(i["total_price"] for i in items)
+
+    return {"items": items, "grand_total": grand_total}

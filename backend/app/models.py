@@ -85,6 +85,8 @@ class Event(Base):
     gifts_sent = Column(Boolean, default=False)
     shipped_date = Column(String(20), nullable=True)  # ISO date of actual shipment
     created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)  # soft delete timestamp
+    delete_reason = Column(String(50), nullable=True)  # ошибка / отказ / напрямую
 
     sets = relationship("GiftSet", back_populates="event", cascade="all, delete-orphan")
 

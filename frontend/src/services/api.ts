@@ -50,8 +50,11 @@ export const api = {
       request<Event>("/events/", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: EventCreate) =>
       request<Event>(`/events/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    delete: (id: number) =>
-      request<void>(`/events/${id}`, { method: "DELETE" }),
+    delete: (id: number, reason: string) =>
+      request<void>(`/events/${id}`, { method: "DELETE", body: JSON.stringify({ reason }) }),
+    trash: () => request<Event[]>("/events/trash"),
+    restore: (id: number) =>
+      request<Event>(`/events/${id}/restore`, { method: "PATCH" }),
     generate: (id: number, variant: number = 0) =>
       request<GiftSet[]>(`/events/${id}/generate?variant=${variant}`, { method: "POST" }),
     sets: (id: number) => request<GiftSet[]>(`/events/${id}/sets`),
@@ -180,5 +183,23 @@ export const api = {
   },
   dashboard: {
     stats: () => request<DashboardStats>("/dashboard/stats"),
+    itemsReport: (params: {
+      date_from?: string;
+      date_to?: string;
+      sku_type?: string;
+      warehouse?: string;
+      event_type?: string;
+    }) => {
+      const p = new URLSearchParams();
+      if (params.date_from) p.set("date_from", params.date_from);
+      if (params.date_to) p.set("date_to", params.date_to);
+      if (params.sku_type) p.set("sku_type", params.sku_type);
+      if (params.warehouse) p.set("warehouse", params.warehouse);
+      if (params.event_type) p.set("event_type", params.event_type);
+      const qs = p.toString() ? `?${p.toString()}` : "";
+      return request<{ items: { name: string; sku_type: string; qty: number; total_price: number }[]; grand_total: number }>(
+        `/dashboard/items-report${qs}`
+      );
+    },
   },
 };

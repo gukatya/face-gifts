@@ -6,7 +6,7 @@ export interface Nomination {
   is_custom?: boolean;
 }
 
-export type EventType = "чемпионат" | "мастер-класс" | "блоггерская рассылка" | "партнёрский ивент" | "другое";
+export type EventType = "чемпионат" | "мастер-класс" | "блоггерская рассылка" | "партнёрский ивент" | "собственное мероприятие FACE" | "другое";
 
 export interface EventCreate {
   name: string;
@@ -39,7 +39,11 @@ export interface Event extends EventCreate {
   shipped_date: string | null;
   created_at: string;
   nominations_data: Nomination[] | null;
+  deleted_at: string | null;
+  delete_reason: string | null;
 }
+
+export type DeleteReason = "ошибка" | "отказ" | "напрямую";
 
 export interface MonthlyBudget {
   id: number;

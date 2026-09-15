@@ -7,7 +7,7 @@ import io
 
 from ..database import get_db
 from ..models import Event, GiftSet
-from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse
+from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse, DeleteEventPayload
 from .auth import require_admin
 
 
@@ -23,7 +23,24 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 @router.get("/", response_model=list[EventOut])
 def list_events(db: Session = Depends(get_db)):
-    return db.query(Event).order_by(Event.created_at.desc()).all()
+    return db.query(Event).filter(Event.deleted_at.is_(None)).order_by(Event.created_at.desc()).all()
+
+
+@router.get("/trash", response_model=list[EventOut])
+def list_trash(db: Session = Depends(get_db)):
+    return db.query(Event).filter(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc()).all()
+
+
+@router.patch("/{event_id}/restore", response_model=EventOut)
+def restore_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.deleted_at = None
+    event.delete_reason = None
+    db.commit()
+    db.refresh(event)
+    return event
 
 
 @router.post("/", response_model=EventOut, status_code=201)
@@ -69,11 +86,13 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{event_id}", status_code=204)
-def delete_event(event_id: int, db: Session = Depends(get_db)):
+def delete_event(event_id: int, payload: DeleteEventPayload, db: Session = Depends(get_db)):
+    from datetime import datetime as dt
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    db.delete(event)
+    event.deleted_at = dt.utcnow()
+    event.delete_reason = payload.reason
     db.commit()
 
 

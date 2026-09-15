@@ -1,7 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import type { Event, DashboardStats, DashboardMonthStat } from "../types";
+
+const ALL_EVENT_TYPES = [
+  "чемпионат",
+  "мастер-класс",
+  "блоггерская рассылка",
+  "партнёрский ивент",
+  "собственное мероприятие FACE",
+  "другое",
+];
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -218,8 +227,14 @@ export default function AnalyticsPage() {
   const [editingBudget, setEditingBudget] = useState<string | null>(null);
   const [budgetInput, setBudgetInput] = useState("");
 
-  // Items month selector
-  const [itemsMonth, setItemsMonth] = useState<string>(todayYm());
+  // Items report filters
+  const [itemsDateFrom, setItemsDateFrom] = useState<string>("");
+  const [itemsDateTo, setItemsDateTo] = useState<string>("");
+  const [itemsSkuType, setItemsSkuType] = useState<string>("all");
+  const [itemsWarehouse, setItemsWarehouse] = useState<string>("");
+  const [itemsEventTypes, setItemsEventTypes] = useState<string[]>([]);
+  const [itemsReport, setItemsReport] = useState<{ items: { name: string; sku_type: string; qty: number; total_price: number }[]; grand_total: number } | null>(null);
+  const [itemsLoading, setItemsLoading] = useState(false);
 
   // Calendar base month
   const [calBase, setCalBase] = useState<string>(addMonths(todayYm(), -1));
@@ -233,6 +248,19 @@ export default function AnalyticsPage() {
       .then(([evs, st]) => { setEvents(evs); setStats(st); })
       .finally(() => setLoading(false));
   }, []);
+
+  const loadItemsReport = useCallback(() => {
+    setItemsLoading(true);
+    api.dashboard.itemsReport({
+      date_from: itemsDateFrom || undefined,
+      date_to: itemsDateTo || undefined,
+      sku_type: itemsSkuType === "all" ? undefined : itemsSkuType,
+      warehouse: itemsWarehouse || undefined,
+      event_type: itemsEventTypes.length > 0 ? itemsEventTypes.join(",") : undefined,
+    }).then(setItemsReport).finally(() => setItemsLoading(false));
+  }, [itemsDateFrom, itemsDateTo, itemsSkuType, itemsWarehouse, itemsEventTypes]);
+
+  useEffect(() => { loadItemsReport(); }, [loadItemsReport]);
 
   const handleShip = async (id: number) => {
     await api.events.ship(id, shipDate);
@@ -260,9 +288,6 @@ export default function AnalyticsPage() {
   const geography = stats?.geography ?? [];
 
   const calMonths = [calBase, addMonths(calBase, 1), addMonths(calBase, 2)];
-
-  // Items for selected month
-  const itemsStat = monthly_stats.find((s) => s.month === itemsMonth);
 
   return (
     <div className="space-y-10">
@@ -502,61 +527,163 @@ export default function AnalyticsPage() {
 
       {/* ── 4. Items report ── */}
       <section>
-        <div className="flex items-center gap-4 mb-4">
-          <h2 className="section-title">Отчёт по позициям</h2>
-          <select
-            className="input text-sm py-1 px-3 w-auto"
-            value={itemsMonth}
-            onChange={(e) => setItemsMonth(e.target.value)}
-          >
-            {monthly_stats.filter((s) => s.shipped_count > 0).map((s) => (
-              <option key={s.month} value={s.month}>{monthLabel(s.month)}</option>
-            ))}
-            {monthly_stats.filter((s) => s.shipped_count > 0).length === 0 && (
-              <option value={todayYm()}>Нет отгрузок</option>
+        <h2 className="section-title mb-4">Отчёт по позициям</h2>
+
+        {/* Filters */}
+        <div className="card mb-4 space-y-4">
+          {/* Date range */}
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата отгрузки с</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5 px-3 w-40"
+                value={itemsDateFrom}
+                onChange={(e) => setItemsDateFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">по</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5 px-3 w-40"
+                value={itemsDateTo}
+                onChange={(e) => setItemsDateTo(e.target.value)}
+              />
+            </div>
+            {(itemsDateFrom || itemsDateTo) && (
+              <button
+                className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5"
+                onClick={() => { setItemsDateFrom(""); setItemsDateTo(""); }}
+              >
+                Сбросить даты
+              </button>
             )}
-          </select>
+          </div>
+
+          {/* Category + warehouse */}
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Категория</label>
+              <select
+                className="input text-sm py-1.5 px-3"
+                value={itemsSkuType}
+                onChange={(e) => setItemsSkuType(e.target.value)}
+              >
+                <option value="all">Все позиции</option>
+                <option value="pigment">Только пигменты</option>
+                <option value="consumable">Только расходники</option>
+                <option value="sample">Мини-сэты</option>
+                <option value="certificate">Сертификаты</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Склад</label>
+              <select
+                className="input text-sm py-1.5 px-3"
+                value={itemsWarehouse}
+                onChange={(e) => setItemsWarehouse(e.target.value)}
+              >
+                <option value="">Все склады</option>
+                <option value="Россия">Россия</option>
+                <option value="Европа">Европа</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Event types */}
+          <div>
+            <label className="block text-xs text-black/40 mb-2 uppercase tracking-wider">Тип мероприятия</label>
+            <div className="flex flex-wrap gap-2">
+              {ALL_EVENT_TYPES.map((t) => {
+                const active = itemsEventTypes.includes(t);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setItemsEventTypes((prev) =>
+                      active ? prev.filter((x) => x !== t) : [...prev, t]
+                    )}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      active
+                        ? "bg-luxe-black text-white border-luxe-black"
+                        : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+              {itemsEventTypes.length > 0 && (
+                <button
+                  className="text-xs px-2 py-1 text-black/30 hover:text-black/60"
+                  onClick={() => setItemsEventTypes([])}
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Results table */}
         <div className="card overflow-hidden p-0">
-          {!itemsStat || itemsStat.top_items.length === 0 ? (
+          {itemsLoading ? (
+            <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">Загрузка...</div>
+          ) : !itemsReport || itemsReport.items.length === 0 ? (
             <div className="text-center py-10 text-black/30 text-xs tracking-widest uppercase">
-              Нет отгруженных позиций за этот месяц
+              Нет отгруженных позиций по выбранным фильтрам
             </div>
           ) : (
             <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[360px]">
-              <thead>
-                <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
-                  <th className="text-left px-5 py-3 font-medium">#</th>
-                  <th className="text-left px-5 py-3 font-medium">Позиция</th>
-                  <th className="text-left px-5 py-3 font-medium">Тип</th>
-                  <th className="text-right px-5 py-3 font-medium">Кол-во</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemsStat.top_items.map((item, i) => (
-                  <tr key={i} className="border-b border-black/5 hover:bg-black/5">
-                    <td className="px-5 py-2.5 text-black/30 text-xs">{i + 1}</td>
-                    <td className="px-5 py-2.5 font-medium text-luxe-black">{item.name}</td>
-                    <td className="px-5 py-2.5">
-                      <span className="badge bg-black/10 text-black/50 text-xs">
-                        {item.sku_type === "pigment" ? "Пигмент"
-                          : item.sku_type === "sample" ? "Мини-сэт"
-                          : item.sku_type === "consumable" ? "Расходник"
-                          : "Сертификат"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-2.5 text-right font-black text-luxe-black">{item.qty}</td>
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-black/5 text-xs text-black/30 uppercase tracking-wider">
+                    <th className="text-left px-5 py-3 font-medium">#</th>
+                    <th className="text-left px-5 py-3 font-medium">Позиция</th>
+                    <th className="text-left px-5 py-3 font-medium">Тип</th>
+                    <th className="text-right px-5 py-3 font-medium">Кол-во</th>
+                    <th className="text-right px-5 py-3 font-medium">Сумма, ₽</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {itemsReport.items.map((item, i) => (
+                    <tr key={i} className="border-b border-black/5 hover:bg-black/5">
+                      <td className="px-5 py-2.5 text-black/30 text-xs">{i + 1}</td>
+                      <td className="px-5 py-2.5 font-medium text-luxe-black">{item.name}</td>
+                      <td className="px-5 py-2.5">
+                        <span className="badge bg-black/10 text-black/50 text-xs">
+                          {item.sku_type === "pigment" ? "Пигмент"
+                            : item.sku_type === "sample" ? "Мини-сэт"
+                            : item.sku_type === "consumable" ? "Расходник"
+                            : "Сертификат"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-2.5 text-right font-black text-luxe-black">{item.qty}</td>
+                      <td className="px-5 py-2.5 text-right text-black/60">
+                        {item.total_price > 0 ? item.total_price.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black/10 bg-black/5">
+                    <td colSpan={3} className="px-5 py-3 text-xs uppercase tracking-wider text-black/40 font-medium">Итого</td>
+                    <td className="px-5 py-3 text-right font-black text-luxe-black">
+                      {itemsReport.items.reduce((s, i) => s + i.qty, 0)}
+                    </td>
+                    <td className="px-5 py-3 text-right font-black text-luxe-black">
+                      {itemsReport.grand_total > 0
+                        ? itemsReport.grand_total.toLocaleString("ru-RU", { maximumFractionDigits: 0 }) + " ₽"
+                        : "—"}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           )}
         </div>
         <p className="text-xs text-black/30 mt-2 font-light">
-          * Считаются позиции из всех отгруженных мероприятий в выбранном месяце отгрузки.
+          * Считаются позиции из отгруженных мероприятий за выбранный период. Сумма — цена позиции × количество.
         </p>
       </section>
 

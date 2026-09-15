@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
-import type { Event } from "../types";
+import type { Event, DeleteReason } from "../types";
 
 const SHIP_DAYS = 14; // ship gifts this many days before the event
 
@@ -54,20 +54,43 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortMode>("date_asc");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{ id: number; name: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState<DeleteReason>("ошибка");
+  const [deleteWarning, setDeleteWarning] = useState(false);
   const [shippingId, setShippingId] = useState<number | null>(null);
   const [shipDate, setShipDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [newProposalsCount, setNewProposalsCount] = useState(0);
+  const [trash, setTrash] = useState<Event[]>([]);
+  const [trashOpen, setTrashOpen] = useState(false);
 
   useEffect(() => {
     api.events.list().then(setEvents).finally(() => setLoading(false));
     api.proposals.stats().then((s) => setNewProposalsCount(s.new_count)).catch(() => {});
+    api.events.trash().then(setTrash).catch(() => {});
   }, []);
 
-  const handleDelete = async (id: number) => {
-    await api.events.delete(id);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    setConfirmDeleteId(null);
+  const handleRestore = async (id: number) => {
+    const restored = await api.events.restore(id);
+    setTrash((prev) => prev.filter((e) => e.id !== id));
+    setEvents((prev) => [restored, ...prev]);
+  };
+
+  const openDeleteModal = (ev: Event) => {
+    setDeleteModal({ id: ev.id, name: ev.name });
+    setDeleteReason("ошибка");
+    setDeleteWarning(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteModal) return;
+    if (deleteReason === "напрямую" && !deleteWarning) {
+      setDeleteWarning(true);
+      return;
+    }
+    await api.events.delete(deleteModal.id, deleteReason);
+    setEvents((prev) => prev.filter((e) => e.id !== deleteModal.id));
+    setDeleteModal(null);
+    setDeleteWarning(false);
   };
 
   const handleShip = async (id: number) => {
@@ -162,6 +185,63 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Delete modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 className="font-black text-luxe-black text-lg uppercase tracking-tight mb-1">
+              Удалить мероприятие?
+            </h3>
+            <p className="text-sm text-black/50 mb-5 font-light">«{deleteModal.name}»</p>
+
+            <p className="text-xs uppercase tracking-widest text-black/40 mb-2 font-medium">Причина</p>
+            <div className="flex flex-col gap-2 mb-5">
+              {(["ошибка", "отказ", "напрямую"] as DeleteReason[]).map((r) => (
+                <label key={r} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                  deleteReason === r ? "border-luxe-black bg-luxe-silver/40" : "border-black/10 hover:border-black/20"
+                }`}>
+                  <input
+                    type="radio"
+                    name="delete_reason"
+                    value={r}
+                    checked={deleteReason === r}
+                    onChange={() => { setDeleteReason(r); setDeleteWarning(false); }}
+                    className="accent-luxe-black"
+                  />
+                  <span className="text-sm text-luxe-black">
+                    {r === "ошибка" && "Создали по ошибке"}
+                    {r === "отказ" && "Отказались от сотрудничества"}
+                    {r === "напрямую" && "Отгрузили напрямую"}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {deleteWarning && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800">
+                <p className="font-semibold mb-1">⚠️ Подожди!</p>
+                <p className="font-light">Если подарки уже отправлены — нам всё равно лучше об этом знать. Мы собираем статистику. Не совершай ошибок! Точно удалить?</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                className="btn-secondary flex-1"
+                onClick={() => { setDeleteModal(null); setDeleteWarning(false); }}
+              >
+                Отмена
+              </button>
+              <button
+                className="flex-1 px-4 py-2 bg-luxe-black text-white rounded-xl text-sm font-semibold hover:bg-black/80 transition-colors"
+                onClick={handleDelete}
+              >
+                {deleteWarning ? "Всё равно удалить" : "Удалить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-16 text-luxe-grey-mid text-sm tracking-widest uppercase">
           Загрузка...
@@ -193,7 +273,7 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {evs.map((event) => {
                     const st = STATUS_LABELS[event.status] ?? STATUS_LABELS.draft;
-                    const isConfirmingDelete = confirmDeleteId === event.id;
+                    const isConfirmingDelete = deleteModal?.id === event.id;
                     const isSettingShip = shippingId === event.id;
 
                     // Days until event
@@ -343,33 +423,15 @@ export default function DashboardPage() {
                             Изменить
                           </button>
 
-                          {isConfirmingDelete ? (
-                            <span className="flex items-center gap-1.5">
-                              <span className="text-xs text-black/50">Удалить?</span>
-                              <button
-                                className="text-xs px-2.5 py-1 bg-luxe-black text-white rounded-lg hover:bg-black/80 transition-colors"
-                                onClick={() => handleDelete(event.id)}
-                              >
-                                Да
-                              </button>
-                              <button
-                                className="text-xs px-2.5 py-1 bg-luxe-silver text-black rounded-lg hover:bg-luxe-grey-mid transition-colors"
-                                onClick={() => setConfirmDeleteId(null)}
-                              >
-                                Нет
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              className="text-xs px-2 py-1 text-black/25 hover:text-black/60 transition-colors"
-                              title="Удалить"
-                              onClick={() => setConfirmDeleteId(event.id)}
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
+                          <button
+                            className="text-xs px-2 py-1 text-black/25 hover:text-black/60 transition-colors"
+                            title="Удалить"
+                            onClick={() => openDeleteModal(event)}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     );
@@ -379,6 +441,47 @@ export default function DashboardPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Trash */}
+      {trash.length > 0 && (
+        <section className="mt-10 opacity-60 hover:opacity-80 transition-opacity">
+          <button
+            className="flex items-center gap-2 text-xs tracking-widest uppercase font-medium text-black/40 hover:text-black/70 mb-3"
+            onClick={() => setTrashOpen((v) => !v)}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Корзина — {trash.length} {trashOpen ? "▲" : "▼"}
+          </button>
+          {trashOpen && (
+            <div className="space-y-2">
+              {trash.map((ev) => (
+                <div key={ev.id} className="card flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/5 border-dashed">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-black/50 truncate">{ev.name}</div>
+                    <div className="text-xs text-black/30 font-light mt-0.5 flex flex-wrap gap-3">
+                      <span>{ev.date}</span>
+                      <span>{ev.country}</span>
+                      <span className="italic">
+                        {ev.delete_reason === "ошибка" && "Создали по ошибке"}
+                        {ev.delete_reason === "отказ" && "Отказались от сотрудничества"}
+                        {ev.delete_reason === "напрямую" && "Отгружено напрямую"}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-secondary text-xs py-1.5 px-3 shrink-0"
+                    onClick={() => handleRestore(ev.id)}
+                  >
+                    Восстановить
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
