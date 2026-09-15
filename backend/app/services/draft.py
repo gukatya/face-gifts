@@ -438,6 +438,28 @@ def generate_draft(db: Session, event: Event, variant: int = 0) -> list:
     db.query(GiftSet).filter(GiftSet.event_id == event.id).delete()
     db.flush()
 
+    # ── Кастомное мероприятие (не чемпионат) — пустые наборы, заполняются вручную ──
+    event_type = getattr(event, "event_type", None) or "чемпионат"
+    if event_type != "чемпионат":
+        sets = []
+        for nom in (event.nominations_data or []):
+            nom_name = (nom.get("name") or "").strip()
+            count = nom.get("place1") or 1
+            if not nom_name:
+                continue
+            gs = GiftSet(
+                event_id=event.id,
+                nomination_name=nom_name,
+                place="набор",
+                level="Кастомный",
+                items=[],
+                total_price=0,
+            )
+            db.add(gs)
+            sets.append(gs)
+        db.commit()
+        return sets
+
     country = event.country or ""
     profile = get_country_profile(country)
     region = profile.region

@@ -16,6 +16,7 @@ class EventCreate(BaseModel):
     country: str
     region: Optional[str] = None   # auto-resolved from country if omitted
     warehouse: str = "Россия"
+    event_type: str = "чемпионат"
     recipients: str = "только победители"
     mode: str = "по номинациям"
     level: str = "Нормальный"
@@ -39,6 +40,7 @@ class EventOut(BaseModel):
     country: str
     region: str
     warehouse: str = "Россия"
+    event_type: str = "чемпионат"
     recipients: str = "только победители"
     mode: str = "по номинациям"
     level: str = "Нормальный"

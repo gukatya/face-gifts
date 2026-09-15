@@ -66,6 +66,7 @@ class Event(Base):
     region = Column(String(100))
     warehouse = Column(String(20))   # Россия / Европа
     recipients = Column(String(50))  # только победители / победители + участники
+    event_type = Column(String(50), default="чемпионат")  # чемпионат / мастер-класс / блоггерская рассылка / партнёрский ивент / другое
     mode = Column(String(30))        # по номинациям / универсальный
     level = Column(String(30))       # Скромный / Нормальный / Хороший
     has_grand_prix = Column(Boolean, default=False)  # kept for migration compat, unused

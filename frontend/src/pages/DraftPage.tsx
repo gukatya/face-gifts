@@ -30,6 +30,7 @@ const PLACE_LABELS: Record<string, string> = {
   "гран-при": "Гран-при",
   "розыгрыш": "Розыгрыш",
   "участник": "Участник",
+  "набор": "Набор",
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -250,6 +251,7 @@ export default function DraftPage() {
     const noms = (event.nominations_data ?? []) as Nomination[];
     const nom = noms.find((n) => n.name === gs.nomination_name);
     if (!nom) return 1;
+    if (gs.place === "набор") return Math.max(nom.place1 || 1, 1);
     const key = `place${gs.place}` as "place1" | "place2" | "place3";
     return Math.max(nom[key] || 1, 1);
   };

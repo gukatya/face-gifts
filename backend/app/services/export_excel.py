@@ -192,6 +192,7 @@ def export_event_to_excel(event: Event, sets: list[GiftSet]) -> bytes:
 PLACE_LABELS_RU = {
     "1": "1 место", "2": "2 место", "3": "3 место",
     "гран-при": "Гран-при", "розыгрыш": "Розыгрыш", "участник": "Участник",
+    "набор": "Набор",
 }
 SKU_TYPE_RU = {
     "pigment": "Пигмент", "sample": "Мини-сэт",

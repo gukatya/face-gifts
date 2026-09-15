@@ -6,12 +6,15 @@ export interface Nomination {
   is_custom?: boolean;
 }
 
+export type EventType = "чемпионат" | "мастер-класс" | "блоггерская рассылка" | "партнёрский ивент" | "другое";
+
 export interface EventCreate {
   name: string;
   date: string;
   country: string;
   region: string;
   warehouse: "Россия" | "Европа";
+  event_type: EventType;
   recipients: string;
   mode: "по номинациям" | "универсальный";
   level: "Скромный" | "Нормальный" | "Хороший";
@@ -30,6 +33,7 @@ export interface EventCreate {
 
 export interface Event extends EventCreate {
   id: number;
+  event_type: EventType;
   status: "draft" | "pending" | "approved";
   gifts_sent: boolean;
   shipped_date: string | null;
