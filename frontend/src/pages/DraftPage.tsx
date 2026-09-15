@@ -163,6 +163,7 @@ export default function DraftPage() {
       country: ev.country,
       region: ev.region,
       warehouse: ev.warehouse,
+      event_type: ev.event_type ?? "чемпионат",
       recipients: ev.recipients,
       mode: ev.mode,
       level: ev.level,

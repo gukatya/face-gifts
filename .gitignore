@@ -13,7 +13,6 @@ venv/
 
 # Frontend
 node_modules/
-frontend/dist/
 
 # OS
 .DS_Store
