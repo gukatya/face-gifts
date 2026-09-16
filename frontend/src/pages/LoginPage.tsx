@@ -42,7 +42,7 @@ export default function LoginPage() {
             <input
               type="text"
               className="input w-full"
-              placeholder="kate / kristina / inna"
+              placeholder="kate / kristina / nika / inna"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoFocus
