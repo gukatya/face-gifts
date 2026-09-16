@@ -8,6 +8,7 @@ class NominationInput(BaseModel):
     place1: int = 0
     place2: int = 0
     place3: int = 0
+    is_custom: Optional[bool] = None
 
 
 class EventCreate(BaseModel):

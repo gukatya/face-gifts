@@ -82,7 +82,10 @@ function CountryAutocomplete({ value, onChange, onRegionResolved }: {
     onChange(v);
     if (v.length >= 2) {
       const lower = v.toLowerCase();
-      setSuggestions(allCountries.filter((c) => c.toLowerCase().includes(lower)).slice(0, 8));
+      setSuggestions(allCountries.filter((c) => {
+        const cl = c.toLowerCase();
+        return cl.includes(lower) || lower.includes(cl.slice(0, Math.min(cl.length, 5)));
+      }).slice(0, 8));
       setOpen(true);
     } else {
       setOpen(false);
@@ -161,10 +164,12 @@ export default function NewEventPage() {
           giveaways_count: event.giveaways_count,
           giveaway_mode: event.giveaway_mode ?? "одинаковые",
           participants_count: event.participants_count,
-          nominations: nominations.length > 0 ? nominations : [{ ...EMPTY_NOM }],
+          nominations: nominations.length > 0 ? nominations : [{ ...EMPTY_SET }],
           participants_budget: event.participants_budget ?? 500,
           participants_use_certificate: event.participants_use_certificate ?? false,
           total_budget: event.total_budget ?? undefined,
+          comment: event.comment ?? "",
+          training_format: event.training_format ?? "Базовое обучение",
         });
         setResolvedRegion(event.region || "");
       });
@@ -256,10 +261,12 @@ export default function NewEventPage() {
       let event;
       if (isEditMode && id) {
         event = await api.events.update(Number(id), payload as EventCreate);
+        // For custom events in edit mode, don't regenerate — sets exist and were edited manually
+        if (!isCustomEvent) await api.events.generate(event.id);
       } else {
         event = await api.events.create({ ...(payload as EventCreate), created_by: userName ?? undefined });
+        await api.events.generate(event.id);
       }
-      await api.events.generate(event.id);
       navigate(`/events/${event.id}/draft`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка сохранения");
@@ -472,7 +479,10 @@ export default function NewEventPage() {
             </>
           )}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-between pt-2">
+            {isEditMode ? (
+              <button className="btn-secondary" onClick={() => navigate(`/events/${id}/draft`)}>← Отмена</button>
+            ) : <div />}
             <button className="btn-primary" disabled={!step1Valid} onClick={() => setStep(2)}>
               Далее →
             </button>
@@ -552,7 +562,7 @@ export default function NewEventPage() {
               disabled={saving || !customSetsValid}
               onClick={handleSubmit}
             >
-              {saving ? "Создаём..." : "Создать наборы →"}
+              {saving ? "Сохраняем..." : isEditMode ? "Сохранить изменения →" : "Создать наборы →"}
             </button>
           </div>
         </div>

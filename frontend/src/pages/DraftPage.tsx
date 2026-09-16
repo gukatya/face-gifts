@@ -516,7 +516,7 @@ export default function DraftPage() {
               <div className="text-xs text-black/30">{sets.length} видов наборов</div>
             )}
           </div>
-          {(() => {
+          {event.event_type === "чемпионат" ? (() => {
             const planned = event.total_budget && event.total_budget > 0 ? event.total_budget : totalCost;
             const sliderVal = targetBudget ?? planned;
             const sliderMin = Math.max(5000, Math.round(planned * 0.3 / 1000) * 1000);
@@ -558,7 +558,7 @@ export default function DraftPage() {
                 </div>
               </div>
             );
-          })()}
+          })() : <div className="card col-span-1 flex items-center justify-center text-black/30 text-sm">Ручной набор</div>}
           <div className="card text-center">
             <div className="text-2xl font-black text-luxe-black">
               {totalCost.toLocaleString("ru-RU")} ₽

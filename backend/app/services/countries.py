@@ -90,6 +90,7 @@ COUNTRY_DB: dict[str, CountryProfile] = {
 
     # ЮВА
     "Таиланд":          CountryProfile("ЮВА", 4, 5, 4),
+    "Тайланд":          CountryProfile("ЮВА", 4, 5, 4),  # alias (common misspelling)
     "Вьетнам":          CountryProfile("ЮВА", 4, 5, 4),
     "Индонезия":        CountryProfile("ЮВА", 4, 5, 4),
     "Малайзия":         CountryProfile("ЮВА", 4, 5, 4),
