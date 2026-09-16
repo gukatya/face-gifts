@@ -166,10 +166,10 @@ export const api = {
       }),
   },
   auth: {
-    login: (password: string) =>
-      request<{ role: "admin" | "employee"; token: string }>("/auth/login", {
+    login: (username: string, password: string) =>
+      request<{ role: "admin" | "employee"; token: string; name: string }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       }),
     me: () => request<{ role: "admin" | "employee" }>("/auth/me"),
   },

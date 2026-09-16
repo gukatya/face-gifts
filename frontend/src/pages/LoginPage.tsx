@@ -6,6 +6,7 @@ import { api } from "../services/api";
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,11 +16,11 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { role, token } = await api.auth.login(password);
-      login(role, token);
+      const { role, token, name } = await api.auth.login(username, password);
+      login(role, token, name);
       navigate("/", { replace: true });
     } catch {
-      setError("Неверный пароль");
+      setError("Неверный логин или пароль");
     } finally {
       setLoading(false);
     }
@@ -37,6 +38,18 @@ export default function LoginPage() {
         {/* Card */}
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
+            <label className="label mb-2 block">Логин</label>
+            <input
+              type="text"
+              className="input w-full"
+              placeholder="kate / kristina / inna"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              autoComplete="username"
+            />
+          </div>
+          <div>
             <label className="label mb-2 block">Пароль</label>
             <input
               type="password"
@@ -44,7 +57,6 @@ export default function LoginPage() {
               placeholder="Введите пароль..."
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoFocus
               autoComplete="current-password"
             />
           </div>
@@ -56,7 +68,7 @@ export default function LoginPage() {
           <button
             type="submit"
             className="btn-primary w-full justify-center"
-            disabled={loading || !password}
+            disabled={loading || !username || !password}
           >
             {loading ? "Вход..." : "Войти"}
           </button>

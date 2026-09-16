@@ -5,25 +5,46 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Passwords and tokens are configured via Railway env vars.
-# Change these in production!
-_ADMIN_PASSWORD  = os.getenv("ADMIN_PASSWORD",    "face-admin-2025")
-_EMPLOYEE_PASSWORD = os.getenv("EMPLOYEE_PASSWORD", "face-team-2025")
 ADMIN_TOKEN    = os.getenv("ADMIN_TOKEN",    "face-admin-token")
 EMPLOYEE_TOKEN = os.getenv("EMPLOYEE_TOKEN", "face-employee-token")
 
+# Individual user accounts. Passwords can be overridden via env vars.
+_USERS = {
+    "kate": {
+        "name": "Кейт",
+        "position": "Creative Director",
+        "password": os.getenv("KATE_PASSWORD", "kate-face-2025"),
+        "role": "admin",
+        "token": ADMIN_TOKEN,
+    },
+    "kristina": {
+        "name": "Кристина",
+        "position": "Head of SMM",
+        "password": os.getenv("KRISTINA_PASSWORD", "kristina-face-2025"),
+        "role": "admin",
+        "token": ADMIN_TOKEN,
+    },
+    "inna": {
+        "name": "Инна",
+        "position": "SMM",
+        "password": os.getenv("INNA_PASSWORD", "inna-face-2025"),
+        "role": "employee",
+        "token": EMPLOYEE_TOKEN,
+    },
+}
+
 
 class LoginRequest(BaseModel):
+    username: str
     password: str
 
 
 @router.post("/login")
 def login(payload: LoginRequest):
-    if payload.password == _ADMIN_PASSWORD:
-        return {"role": "admin", "token": ADMIN_TOKEN}
-    if payload.password == _EMPLOYEE_PASSWORD:
-        return {"role": "employee", "token": EMPLOYEE_TOKEN}
-    raise HTTPException(status_code=401, detail="Неверный пароль")
+    user = _USERS.get(payload.username.lower().strip())
+    if not user or user["password"] != payload.password:
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    return {"role": user["role"], "token": user["token"], "name": user["name"]}
 
 
 @router.get("/me")
@@ -34,8 +55,6 @@ def me(x_auth_token: Optional[str] = Header(None)):
         return {"role": "employee"}
     raise HTTPException(status_code=401, detail="Не авторизован")
 
-
-# ── Dependency for admin-only endpoints ──────────────────────────────────────
 
 def require_admin(x_auth_token: Optional[str] = Header(None)):
     if x_auth_token != ADMIN_TOKEN:

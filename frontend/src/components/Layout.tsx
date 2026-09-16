@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 export default function Layout() {
   const loc = useLocation();
   const navigate = useNavigate();
-  const { role, logout } = useAuth();
+  const { role, name, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -44,8 +44,8 @@ export default function Layout() {
                 {role === "admin"    && navLink("/knowledge", "Каталог")}
                 {role === "employee" && navLink("/reference", "Памятка")}
               </nav>
-              <span className="hidden sm:inline text-xs text-white/30 tracking-widest uppercase">
-                {role === "admin" ? "Администратор" : "Сотрудник"}
+              <span className="hidden sm:inline text-xs text-white/40 tracking-wide">
+                {name ?? (role === "admin" ? "Администратор" : "Сотрудник")}
               </span>
               <button
                 onClick={handleLogout}
