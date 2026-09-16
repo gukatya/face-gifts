@@ -24,6 +24,13 @@ _USERS = {
         "role": "admin",
         "token": ADMIN_TOKEN,
     },
+    "nika": {
+        "name": "Ника",
+        "position": "SMM",
+        "password": os.getenv("NIKA_PASSWORD", "nika-face-2025"),
+        "role": "employee",
+        "token": EMPLOYEE_TOKEN,
+    },
     "inna": {
         "name": "Инна",
         "position": "SMM",
