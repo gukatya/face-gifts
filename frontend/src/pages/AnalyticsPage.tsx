@@ -12,6 +12,15 @@ const ALL_EVENT_TYPES = [
   "другое",
 ];
 
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  "чемпионат": "Чемпионат",
+  "мастер-класс": "Обучение",
+  "блоггерская рассылка": "Рассылка",
+  "партнёрский ивент": "Партнёрский ивент",
+  "собственное мероприятие FACE": "FACE",
+  "другое": "Другое",
+};
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const SHIP_DAYS = 14;
@@ -661,7 +670,7 @@ export default function AnalyticsPage() {
                         : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
                     }`}
                   >
-                    {t}
+                    {EVENT_TYPE_LABEL[t] ?? t}
                   </button>
                 );
               })}
@@ -806,7 +815,7 @@ export default function AnalyticsPage() {
                         : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
                     }`}
                   >
-                    {t}
+                    {EVENT_TYPE_LABEL[t] ?? t}
                   </button>
                 );
               })}

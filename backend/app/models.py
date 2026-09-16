@@ -87,6 +87,9 @@ class Event(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)  # soft delete timestamp
     delete_reason = Column(String(50), nullable=True)  # ошибка / отказ / напрямую
+    created_by = Column(String(100), nullable=True)    # имя пользователя, создавшего ивент
+    comment = Column(Text, nullable=True)              # необязательный комментарий
+    training_format = Column(String(100), nullable=True)  # формат обучения (для event_type=мастер-класс)
 
     sets = relationship("GiftSet", back_populates="event", cascade="all, delete-orphan")
 

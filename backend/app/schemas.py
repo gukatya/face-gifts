@@ -14,7 +14,7 @@ class EventCreate(BaseModel):
     name: str
     date: str
     country: str
-    region: Optional[str] = None   # auto-resolved from country if omitted
+    region: Optional[str] = None
     warehouse: str = "Россия"
     event_type: str = "чемпионат"
     recipients: str = "только победители"
@@ -31,6 +31,9 @@ class EventCreate(BaseModel):
     total_budget: Optional[int] = None
     participants_budget: int = 500
     participants_use_certificate: bool = False
+    created_by: Optional[str] = None
+    comment: Optional[str] = None
+    training_format: Optional[str] = None
 
 
 class EventOut(BaseModel):
@@ -61,6 +64,9 @@ class EventOut(BaseModel):
     total_budget: Optional[int] = None
     participants_budget: int = 500
     participants_use_certificate: bool = False
+    created_by: Optional[str] = None
+    comment: Optional[str] = None
+    training_format: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

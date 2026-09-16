@@ -29,6 +29,9 @@ export interface EventCreate {
   total_budget?: number;
   participants_budget: number;
   participants_use_certificate: boolean;
+  created_by?: string | null;
+  comment?: string | null;
+  training_format?: string | null;
 }
 
 export interface Event extends EventCreate {
@@ -41,6 +44,9 @@ export interface Event extends EventCreate {
   nominations_data: Nomination[] | null;
   deleted_at: string | null;
   delete_reason: string | null;
+  created_by?: string | null;
+  comment?: string | null;
+  training_format?: string | null;
 }
 
 export type DeleteReason = "ошибка" | "отказ" | "напрямую";

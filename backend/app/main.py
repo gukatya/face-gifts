@@ -89,6 +89,9 @@ _MIGRATIONS = [
     "ALTER TABLE pigments ADD COLUMN volume_ml VARCHAR(10)",
     "ALTER TABLE events ADD COLUMN deleted_at TIMESTAMP",
     "ALTER TABLE events ADD COLUMN delete_reason VARCHAR(50)",
+    "ALTER TABLE events ADD COLUMN created_by VARCHAR(100)",
+    "ALTER TABLE events ADD COLUMN comment TEXT",
+    "ALTER TABLE events ADD COLUMN training_format VARCHAR(100)",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:

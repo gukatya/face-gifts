@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 import type { EventCreate, EventType, Nomination, CalcLevels } from "../types";
 import StepIndicator from "../components/StepIndicator";
+
+const TRAINING_FORMAT_OPTIONS = ["Базовое обучение", "Мастер-класс", "Другое"];
 
 const NOMINATION_OPTIONS = [
   "Брови — пудровое / градиент",
@@ -49,6 +52,8 @@ const defaultForm: EventCreate = {
   nominations: [{ ...EMPTY_NOM }],
   participants_budget: 500,
   participants_use_certificate: false,
+  comment: "",
+  training_format: "Базовое обучение",
 };
 
 // ─── Country autocomplete ────────────────────────────────────────────────────
@@ -120,6 +125,7 @@ function CountryAutocomplete({ value, onChange, onRegionResolved }: {
 
 export default function NewEventPage() {
   const navigate = useNavigate();
+  const { name: userName } = useAuth();
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const [step, setStep] = useState(1);
@@ -251,7 +257,7 @@ export default function NewEventPage() {
       if (isEditMode && id) {
         event = await api.events.update(Number(id), payload as EventCreate);
       } else {
-        event = await api.events.create(payload as EventCreate);
+        event = await api.events.create({ ...(payload as EventCreate), created_by: userName ?? undefined });
       }
       await api.events.generate(event.id);
       navigate(`/events/${event.id}/draft`);
@@ -346,13 +352,56 @@ export default function NewEventPage() {
             </div>
           </div>
 
+          {form.event_type === "мастер-класс" ? (
+            <>
+              <div>
+                <label className="label">Имя мастера *</label>
+                <input
+                  className="input"
+                  placeholder="Иванова Анна"
+                  value={form.name}
+                  onChange={(e) => update({ name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="label">Формат обучения</label>
+                <div className="flex gap-2 flex-wrap">
+                  {TRAINING_FORMAT_OPTIONS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => update({ training_format: f })}
+                      className={`text-sm px-4 py-2 rounded-lg border transition-colors ${
+                        form.training_format === f
+                          ? "bg-luxe-black text-white border-luxe-black"
+                          : "border-black/15 hover:border-black/30 text-black/70"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="label">Название мероприятия *</label>
+              <input
+                className="input"
+                placeholder={isCustomEvent ? "МК Москва / Рассылка осень 2025..." : "Чемпионат Москва 2025"}
+                value={form.name}
+                onChange={(e) => update({ name: e.target.value })}
+              />
+            </div>
+          )}
+
           <div>
-            <label className="label">Название мероприятия *</label>
+            <label className="label">Комментарий</label>
             <input
               className="input"
-              placeholder={isCustomEvent ? "МК Москва / Рассылка осень 2025..." : "Чемпионат Москва 2025"}
-              value={form.name}
-              onChange={(e) => update({ name: e.target.value })}
+              placeholder="Необязательно — любые заметки по ивенту"
+              value={form.comment ?? ""}
+              onChange={(e) => update({ comment: e.target.value })}
             />
           </div>
 

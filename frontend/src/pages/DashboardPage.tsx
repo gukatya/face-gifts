@@ -47,13 +47,23 @@ function sortEvents(events: Event[], mode: SortMode): Event[] {
   });
 }
 
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  "чемпионат": "Чемпионат",
+  "мастер-класс": "Обучение",
+  "блоггерская рассылка": "Рассылка",
+  "партнёрский ивент": "Партнёрский",
+  "собственное мероприятие FACE": "FACE",
+  "другое": "Другое",
+};
+
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, name: userName } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortMode>("date_asc");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [deleteModal, setDeleteModal] = useState<{ id: number; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState<DeleteReason>("ошибка");
   const [deleteWarning, setDeleteWarning] = useState(false);
@@ -110,10 +120,20 @@ export default function DashboardPage() {
     setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
   };
 
+  const visibleEvents = role === "employee"
+    ? events.filter((e) => !e.created_by || e.created_by === userName)
+    : events;
+
   const filtered = sortEvents(
-    events.filter((e) => e.name.toLowerCase().includes(search.toLowerCase())),
+    visibleEvents.filter((e) => {
+      const matchSearch = e.name.toLowerCase().includes(search.toLowerCase());
+      const matchType = typeFilter === "all" || e.event_type === typeFilter;
+      return matchSearch && matchType;
+    }),
     sort,
   );
+
+  const presentTypes = [...new Set(visibleEvents.map((e) => e.event_type))].filter(Boolean);
 
   // Group by zone (preserve zone order)
   const ZONE_ORDER: Zone[] = ["overdue", "urgent", "upcoming", "past"];
@@ -190,33 +210,57 @@ export default function DashboardPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <input
-          className="input w-full sm:max-w-xs"
-          placeholder="Поиск по названию..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="flex gap-1 sm:ml-auto flex-wrap">
-          {([
-            ["date_asc",     "По дате ↑"],
-            ["date_desc",    "По дате ↓"],
-            ["created_asc",  "По добавлению ↑"],
-            ["created_desc", "По добавлению ↓"],
-          ] as [SortMode, string][]).map(([key, label]) => (
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex gap-3 flex-col sm:flex-row">
+          <input
+            className="input w-full sm:max-w-xs"
+            placeholder="Поиск по названию..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-xs text-black/40 whitespace-nowrap">Сортировка:</span>
+            <select
+              className="input py-1.5 text-sm"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortMode)}
+            >
+              <option value="date_asc">По дате (ближайшие)</option>
+              <option value="date_desc">По дате (поздние)</option>
+              <option value="created_desc">Сначала новые</option>
+              <option value="created_asc">Сначала старые</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Фильтр по типу ивента */}
+        {presentTypes.length > 1 && (
+          <div className="flex gap-2 flex-wrap">
             <button
-              key={key}
-              onClick={() => setSort(key)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap ${
-                sort === key
+              onClick={() => setTypeFilter("all")}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                typeFilter === "all"
                   ? "bg-luxe-black text-white border-luxe-black"
-                  : "bg-white/60 border-black/10 text-black/50 hover:text-black/80"
+                  : "border-black/15 text-black/50 hover:border-black/30"
               }`}
             >
-              {label}
+              Все
             </button>
-          ))}
-        </div>
+            {presentTypes.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(t)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                  typeFilter === t
+                    ? "bg-luxe-black text-white border-luxe-black"
+                    : "border-black/15 text-black/50 hover:border-black/30"
+                }`}
+              >
+                {EVENT_TYPE_LABELS[t] ?? t}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Delete modal */}
