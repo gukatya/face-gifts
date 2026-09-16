@@ -1,17 +1,76 @@
 import os
+import asyncio
+import shutil
+import tempfile
+import urllib.request
+import urllib.parse
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from sqlalchemy import text
 from .database import Base, engine, get_db
 from .routers import events, knowledge, catalog, budgets, dashboard, proposals
-from .routers.auth import router as auth_router
+from .routers.auth import router as auth_router, require_admin
 from .services.seed import seed_all
+
+DB_PATH = os.getenv("DATABASE_URL", "").replace("sqlite:///", "").replace("sqlite://", "") or "/data/face_gifts.db"
+TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TG_CHAT  = os.getenv("TELEGRAM_CHAT_ID", "")
+
+
+def _send_db_to_telegram(label: str = "") -> bool:
+    """Send a copy of the SQLite DB to the configured Telegram chat. Returns True on success."""
+    if not TG_TOKEN or not TG_CHAT:
+        return False
+    db_file = Path(DB_PATH)
+    if not db_file.exists():
+        return False
+    try:
+        date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        filename = f"face_gifts_backup_{date_str}.db"
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendDocument"
+        caption = f"🗄 Бэкап базы FACE Gifts {date_str}"
+        if label:
+            caption += f" ({label})"
+        with open(db_file, "rb") as f:
+            data = f.read()
+        boundary = "----BackupBoundary"
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{TG_CHAT}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
+            f"Content-Type: application/octet-stream\r\n\r\n"
+        ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=30)
+        return True
+    except Exception as e:
+        print(f"[backup] Telegram send failed: {e}")
+        return False
+
+
+async def _daily_backup_loop():
+    """Send DB backup to Telegram every 24 hours."""
+    await asyncio.sleep(5)  # wait for app to finish starting
+    while True:
+        print("[backup] Sending daily backup to Telegram...")
+        ok = _send_db_to_telegram("авто")
+        print(f"[backup] {'ok' if ok else 'skipped (no token or chat configured)'}")
+        await asyncio.sleep(24 * 3600)
 
 Base.metadata.create_all(bind=engine)
 
@@ -58,18 +117,56 @@ app.include_router(proposals.router, prefix="/api")
 
 
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     db = next(get_db())
     try:
         result = seed_all(db)
         print(f"[seed] {result}")
     finally:
         db.close()
+    # Start daily Telegram backup if configured
+    if TG_TOKEN and TG_CHAT:
+        asyncio.create_task(_daily_backup_loop())
+        print("[backup] Daily Telegram backup scheduled")
+    else:
+        print("[backup] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set — backup disabled")
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/admin/backup/download", dependencies=[Depends(require_admin)])
+def download_backup():
+    """Download the SQLite database file."""
+    db_file = Path(DB_PATH)
+    if not db_file.exists():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Database file not found")
+    date_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    filename = f"face_gifts_backup_{date_str}.db"
+
+    def _stream():
+        with open(db_file, "rb") as f:
+            while chunk := f.read(65536):
+                yield chunk
+
+    return StreamingResponse(
+        _stream(),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/admin/backup/telegram", dependencies=[Depends(require_admin)])
+def send_backup_now():
+    """Manually trigger a Telegram backup."""
+    ok = _send_db_to_telegram("ручной")
+    if not ok:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Telegram not configured or send failed")
+    return {"status": "sent"}
 
 
 @app.post("/admin/reseed")

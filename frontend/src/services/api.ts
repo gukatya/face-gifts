@@ -173,6 +173,10 @@ export const api = {
       }),
     me: () => request<{ role: "admin" | "employee" }>("/auth/me"),
   },
+  admin: {
+    backupDownloadUrl: () => `/api/admin/backup/download`,
+    sendBackupToTelegram: () => request<{ status: string }>("/admin/backup/telegram", { method: "POST" }),
+  },
   budgets: {
     list: () => request<MonthlyBudget[]>("/budgets/"),
     set: (month: string, planned: number) =>
