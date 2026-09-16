@@ -64,13 +64,20 @@ def _send_db_to_telegram(label: str = "") -> bool:
 
 
 async def _daily_backup_loop():
-    """Send DB backup to Telegram every 24 hours."""
+    """Send DB backup to Telegram every day at 21:00 Moscow time (UTC+3 = 18:00 UTC)."""
     await asyncio.sleep(5)  # wait for app to finish starting
     while True:
+        now = datetime.utcnow()
+        # Target: 18:00 UTC = 21:00 MSK
+        target = now.replace(hour=18, minute=0, second=0, microsecond=0)
+        if now >= target:
+            target = target.replace(day=target.day + 1)
+        seconds_until = (target - now).total_seconds()
+        print(f"[backup] Next backup in {seconds_until/3600:.1f}h (at 21:00 MSK)")
+        await asyncio.sleep(seconds_until)
         print("[backup] Sending daily backup to Telegram...")
         ok = _send_db_to_telegram("авто")
         print(f"[backup] {'ok' if ok else 'skipped (no token or chat configured)'}")
-        await asyncio.sleep(24 * 3600)
 
 Base.metadata.create_all(bind=engine)
 
