@@ -190,18 +190,18 @@ export default function NewEventPage() {
   const updateSet = (i: number, patch: Partial<Nomination>) =>
     update({ nominations: form.nominations.map((n, idx) => (idx === i ? { ...n, ...patch } : n)) });
 
-  // Switch event type
+  // Switch event type — preserve comment and other user-entered fields
   const switchEventType = (et: EventType) => {
     if (isEditMode) {
-      // In edit mode, never reset nominations — GiftSets in DB are preserved anyway (generate not called)
       update({ event_type: et });
       return;
     }
-    // New event: reset nominations to match the selected type
-    update({
+    setForm((f) => ({
+      ...f,
       event_type: et,
       nominations: et === "чемпионат" ? [{ ...EMPTY_NOM }] : [{ ...EMPTY_SET }],
-    });
+      // comment, name, date, country, etc. preserved via ...f spread
+    }));
   };
 
   // Champions flow — step 3 budget
