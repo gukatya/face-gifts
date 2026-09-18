@@ -58,6 +58,13 @@ export const api = {
     generate: (id: number, variant: number = 0) =>
       request<GiftSet[]>(`/events/${id}/generate?variant=${variant}`, { method: "POST" }),
     sets: (id: number) => request<GiftSet[]>(`/events/${id}/sets`),
+    addSet: (eventId: number, nominationName: string) =>
+      request<GiftSet>(`/events/${eventId}/sets`, {
+        method: "POST",
+        body: JSON.stringify({ nomination_name: nominationName }),
+      }),
+    deleteSet: (eventId: number, setId: number) =>
+      request<void>(`/events/${eventId}/sets/${setId}`, { method: "DELETE" }),
     updateSet: (eventId: number, setId: number, items: GiftSet["items"]) =>
       request<GiftSet>(`/events/${eventId}/sets/${setId}`, {
         method: "PUT",

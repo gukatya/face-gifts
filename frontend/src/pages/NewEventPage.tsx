@@ -190,12 +190,24 @@ export default function NewEventPage() {
   const updateSet = (i: number, patch: Partial<Nomination>) =>
     update({ nominations: form.nominations.map((n, idx) => (idx === i ? { ...n, ...patch } : n)) });
 
-  // Switch event type — reset nominations to appropriate empty state
+  // Switch event type — preserve set names when switching between custom types
   const switchEventType = (et: EventType) => {
-    update({
-      event_type: et,
-      nominations: et === "чемпионат" ? [{ ...EMPTY_NOM }] : [{ ...EMPTY_SET }],
-    });
+    const wasCustom = form.event_type !== "чемпионат";
+    const nowCustom = et !== "чемпионат";
+    let nominations: Nomination[];
+    if (et === "чемпионат") {
+      nominations = [{ ...EMPTY_NOM }];
+    } else if (wasCustom) {
+      // Switching between custom types — keep existing sets
+      nominations = form.nominations;
+    } else {
+      // Switching from championship to custom — convert nomination names to sets
+      const converted = form.nominations
+        .filter((n) => n.name.trim())
+        .map((n) => ({ name: n.name, place1: Math.max(n.place1, 1), place2: 0, place3: 0, is_custom: true as const }));
+      nominations = converted.length > 0 ? converted : [{ ...EMPTY_SET }];
+    }
+    update({ event_type: et, nominations });
   };
 
   // Champions flow — step 3 budget

@@ -13,6 +13,10 @@ from .auth import require_admin
 
 class ShipPayload(BaseModel):
     shipped_date: Optional[str] = None  # ISO date string, defaults to today if None
+
+
+class AddSetPayload(BaseModel):
+    nomination_name: str = "Новый набор"
 from ..services.calculator import calc_all_levels
 from ..services.draft import generate_draft
 from ..services.export_excel import export_event_to_excel
@@ -190,6 +194,36 @@ def unapprove_event(event_id: int, db: Session = Depends(get_db)):
 @router.get("/{event_id}/sets", response_model=list[GiftSetOut])
 def get_event_sets(event_id: int, db: Session = Depends(get_db)):
     return db.query(GiftSet).filter(GiftSet.event_id == event_id).all()
+
+
+@router.post("/{event_id}/sets", response_model=GiftSetOut)
+def add_gift_set(event_id: int, payload: AddSetPayload, db: Session = Depends(get_db)):
+    """Add a single empty set to a custom event."""
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    gs = GiftSet(
+        event_id=event_id,
+        nomination_name=payload.nomination_name,
+        place="набор",
+        level=event.level or "Нормальный",
+        items=[],
+        total_price=0,
+    )
+    db.add(gs)
+    db.commit()
+    db.refresh(gs)
+    return gs
+
+
+@router.delete("/{event_id}/sets/{set_id}", status_code=204)
+def delete_gift_set(event_id: int, set_id: int, db: Session = Depends(get_db)):
+    """Delete a single set from a custom event."""
+    gs = db.query(GiftSet).filter(GiftSet.id == set_id, GiftSet.event_id == event_id).first()
+    if not gs:
+        raise HTTPException(status_code=404, detail="Gift set not found")
+    db.delete(gs)
+    db.commit()
 
 
 @router.put("/{event_id}/sets/{set_id}", response_model=GiftSetOut)

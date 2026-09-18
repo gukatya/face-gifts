@@ -96,6 +96,11 @@ export default function DraftPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
 
+  // Add new set (custom events)
+  const [newSetName, setNewSetName] = useState("");
+  const [addingSet, setAddingSet] = useState(false);
+  const [showNewSetInput, setShowNewSetInput] = useState(false);
+
   const load = async () => {
     const [ev, ss] = await Promise.all([api.events.get(eventId), api.events.sets(eventId)]);
     setEvent(ev);
@@ -105,6 +110,26 @@ export default function DraftPage() {
   };
 
   useEffect(() => { load(); }, [eventId]);
+
+  const addNewSet = async () => {
+    const name = newSetName.trim() || "Новый набор";
+    setAddingSet(true);
+    try {
+      const gs = await api.events.addSet(eventId, name);
+      setSets((prev) => [...prev, gs]);
+      setExpanded((prev) => new Set([...prev, gs.id]));
+      setNewSetName("");
+      setShowNewSetInput(false);
+    } finally {
+      setAddingSet(false);
+    }
+  };
+
+  const deleteSet = async (setId: number) => {
+    await api.events.deleteSet(eventId, setId);
+    setSets((prev) => prev.filter((s) => s.id !== setId));
+  };
+
   // Preload catalog up front — the first gift set auto-expands on load,
   // bypassing toggleExpand() (which previously was the only trigger for this)
   useEffect(() => { loadCatalog(); }, []);
@@ -608,7 +633,9 @@ export default function DraftPage() {
                     onClick={() => toggleExpand(gs.id)}
                   >
                     <span className="font-semibold text-luxe-black">{gs.nomination_name}</span>
-                    <span className="text-sm text-black/40">{PLACE_LABELS[gs.place] ?? gs.place}</span>
+                    {event.event_type === "чемпионат" && (
+                      <span className="text-sm text-black/40">{PLACE_LABELS[gs.place] ?? gs.place}</span>
+                    )}
                     <span className={`badge ${LEVEL_COLORS[gs.level] ?? "bg-black/10 text-black/50"}`}>
                       {gs.level}
                     </span>
@@ -643,6 +670,13 @@ export default function DraftPage() {
                       </div>
                     )}
 
+                    {event.event_type !== "чемпионат" && !dirty && (
+                      <button
+                        className="text-black/20 hover:text-red-400 text-sm transition-colors"
+                        title="Удалить набор"
+                        onClick={(e) => { e.stopPropagation(); if (confirm(`Удалить набор «${gs.nomination_name}»?`)) deleteSet(gs.id); }}
+                      >×</button>
+                    )}
                     <button
                       className="text-black/30 text-sm w-4"
                       onClick={() => toggleExpand(gs.id)}
@@ -770,6 +804,37 @@ export default function DraftPage() {
               </div>
             );
           })}
+
+          {/* Add set button — custom events only */}
+          {event.event_type !== "чемпионат" && (
+            <div className="mt-3">
+              {showNewSetInput ? (
+                <div className="card flex items-center gap-3 py-3">
+                  <input
+                    autoFocus
+                    className="input flex-1"
+                    placeholder="Название набора"
+                    value={newSetName}
+                    onChange={(e) => setNewSetName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); } }}
+                  />
+                  <button className="btn-primary text-sm px-4" onClick={addNewSet} disabled={addingSet}>
+                    {addingSet ? "..." : "Добавить"}
+                  </button>
+                  <button className="btn-secondary text-sm px-3" onClick={() => { setShowNewSetInput(false); setNewSetName(""); }}>
+                    Отмена
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-black/15 text-sm text-black/40 hover:border-black/30 hover:text-black/60 transition-all"
+                  onClick={() => setShowNewSetInput(true)}
+                >
+                  + Добавить набор
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
