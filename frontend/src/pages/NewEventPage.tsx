@@ -190,24 +190,18 @@ export default function NewEventPage() {
   const updateSet = (i: number, patch: Partial<Nomination>) =>
     update({ nominations: form.nominations.map((n, idx) => (idx === i ? { ...n, ...patch } : n)) });
 
-  // Switch event type — preserve set names when switching between custom types
+  // Switch event type
   const switchEventType = (et: EventType) => {
-    const wasCustom = form.event_type !== "чемпионат";
-    const nowCustom = et !== "чемпионат";
-    let nominations: Nomination[];
-    if (et === "чемпионат") {
-      nominations = [{ ...EMPTY_NOM }];
-    } else if (wasCustom) {
-      // Switching between custom types — keep existing sets
-      nominations = form.nominations;
-    } else {
-      // Switching from championship to custom — convert nomination names to sets
-      const converted = form.nominations
-        .filter((n) => n.name.trim())
-        .map((n) => ({ name: n.name, place1: Math.max(n.place1, 1), place2: 0, place3: 0, is_custom: true as const }));
-      nominations = converted.length > 0 ? converted : [{ ...EMPTY_SET }];
+    if (isEditMode) {
+      // In edit mode, never reset nominations — GiftSets in DB are preserved anyway (generate not called)
+      update({ event_type: et });
+      return;
     }
-    update({ event_type: et, nominations });
+    // New event: reset nominations to match the selected type
+    update({
+      event_type: et,
+      nominations: et === "чемпионат" ? [{ ...EMPTY_NOM }] : [{ ...EMPTY_SET }],
+    });
   };
 
   // Champions flow — step 3 budget
@@ -495,9 +489,16 @@ export default function NewEventPage() {
             {isEditMode ? (
               <button className="btn-secondary" onClick={() => navigate(`/events/${id}/draft`)}>← Отмена</button>
             ) : <div />}
-            <button className="btn-primary" disabled={!step1Valid} onClick={() => setStep(2)}>
-              Далее →
-            </button>
+            {/* In edit mode for custom events: skip step 2, save directly */}
+            {isEditMode && isCustomEvent ? (
+              <button className="btn-primary" disabled={!step1Valid || saving} onClick={handleSubmit}>
+                {saving ? "Сохраняем..." : "Сохранить изменения →"}
+              </button>
+            ) : (
+              <button className="btn-primary" disabled={!step1Valid} onClick={() => setStep(2)}>
+                Далее →
+              </button>
+            )}
           </div>
         </div>
       )}
