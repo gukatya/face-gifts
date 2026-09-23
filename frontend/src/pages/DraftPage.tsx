@@ -99,6 +99,7 @@ export default function DraftPage() {
 
   // Add new set (custom events)
   const [newSetName, setNewSetName] = useState("");
+  const [newSetCount, setNewSetCount] = useState(1);
   const [addingSet, setAddingSet] = useState(false);
   const [showNewSetInput, setShowNewSetInput] = useState(false);
 
@@ -113,13 +114,28 @@ export default function DraftPage() {
   useEffect(() => { load(); }, [eventId]);
 
   const addNewSet = async () => {
+    if (!event) return;
     const name = newSetName.trim() || "Новый набор";
+    const count = Math.max(newSetCount || 1, 1);
     setAddingSet(true);
     try {
       const gs = await api.events.addSet(eventId, name);
+      // Persist count into nominations_data so getSetCount works
+      if (count > 1) {
+        const noms = [...(event.nominations_data ?? [])];
+        const idx = noms.findIndex((n: { name: string }) => n.name === name);
+        if (idx >= 0) noms[idx] = { ...noms[idx], place1: count };
+        else noms.push({ name, place1: count, place2: 1, place3: 1 });
+        const updated = await api.events.update(eventId, {
+          ...event,
+          nominations: noms,
+        } as Parameters<typeof api.events.update>[1]);
+        setEvent(updated);
+      }
       setSets((prev) => [...prev, gs]);
       setExpanded((prev) => new Set([...prev, gs.id]));
       setNewSetName("");
+      setNewSetCount(1);
       setShowNewSetInput(false);
     } finally {
       setAddingSet(false);
@@ -500,9 +516,18 @@ export default function DraftPage() {
                   Согласование
                 </button>
                 <button
-                  className="btn-primary text-sm opacity-70 hover:opacity-100"
                   onClick={handleNotifyBoss}
                   title="Отправить список подарков боссу в Telegram для финального подтверждения"
+                  className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-all"
+                  style={{
+                    background: "rgba(30,30,30,0.45)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(30,30,30,0.65)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(30,30,30,0.45)"; }}
                 >
                   Согласование БОСС
                 </button>
@@ -635,17 +660,27 @@ export default function DraftPage() {
             <>
               <p className="text-black/40 mb-4">Наборов пока нет — добавь первый</p>
               {showNewSetInput ? (
-                <div className="flex items-center gap-3 max-w-sm mx-auto">
+                <div className="flex flex-wrap items-center gap-3 max-w-lg mx-auto">
                   <input
                     autoFocus
-                    className="input flex-1"
+                    className="input flex-1 min-w-40"
                     placeholder="Название набора"
                     value={newSetName}
                     onChange={(e) => setNewSetName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); } }}
+                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); setNewSetCount(1); } }}
                   />
-                  <button className="btn-primary text-sm px-4" onClick={addNewSet} disabled={addingSet}>{addingSet ? "..." : "Добавить"}</button>
-                  <button className="btn-secondary text-sm px-3" onClick={() => { setShowNewSetInput(false); setNewSetName(""); }}>Отмена</button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs text-black/40 whitespace-nowrap">× кол-во:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="input text-sm w-16 py-1.5 px-2 text-center"
+                      value={newSetCount}
+                      onChange={(e) => setNewSetCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+                  <button className="btn-primary text-sm px-4 shrink-0" onClick={addNewSet} disabled={addingSet}>{addingSet ? "..." : "Добавить"}</button>
+                  <button className="btn-secondary text-sm px-3 shrink-0" onClick={() => { setShowNewSetInput(false); setNewSetName(""); setNewSetCount(1); }}>Отмена</button>
                 </div>
               ) : (
                 <button className="btn-primary" onClick={() => setShowNewSetInput(true)}>
@@ -853,12 +888,12 @@ export default function DraftPage() {
                         )}
                       </div>
 
-                      <div className="text-sm text-black/50 ml-auto whitespace-nowrap text-right">
-                        <div>1 набор: <span className="font-semibold text-luxe-black">{displayTotal.toLocaleString("ru-RU")} ₽</span></div>
-                        {getSetCount(gs) > 1 && (
-                          <div className="text-xs mt-0.5">× {getSetCount(gs)} = <span className="font-black text-luxe-black">{(displayTotal * getSetCount(gs)).toLocaleString("ru-RU")} ₽</span></div>
-                        )}
-                      </div>
+                      {getSetCount(gs) > 1 && (
+                        <div className="text-sm text-black/50 ml-auto whitespace-nowrap text-right">
+                          <span className="text-xs">× {getSetCount(gs)} = </span>
+                          <span className="font-black text-luxe-black">{(displayTotal * getSetCount(gs)).toLocaleString("ru-RU")} ₽</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -870,19 +905,29 @@ export default function DraftPage() {
           {event.event_type !== "чемпионат" && (
             <div className="mt-3">
               {showNewSetInput ? (
-                <div className="card flex items-center gap-3 py-3">
+                <div className="card flex items-center gap-3 py-3 flex-wrap">
                   <input
                     autoFocus
-                    className="input flex-1"
+                    className="input flex-1 min-w-40"
                     placeholder="Название набора"
                     value={newSetName}
                     onChange={(e) => setNewSetName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); } }}
+                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); setNewSetCount(1); } }}
                   />
-                  <button className="btn-primary text-sm px-4" onClick={addNewSet} disabled={addingSet}>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs text-black/40 whitespace-nowrap">× кол-во:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="input text-sm w-16 py-1.5 px-2 text-center"
+                      value={newSetCount}
+                      onChange={(e) => setNewSetCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+                  <button className="btn-primary text-sm px-4 shrink-0" onClick={addNewSet} disabled={addingSet}>
                     {addingSet ? "..." : "Добавить"}
                   </button>
-                  <button className="btn-secondary text-sm px-3" onClick={() => { setShowNewSetInput(false); setNewSetName(""); }}>
+                  <button className="btn-secondary text-sm px-3 shrink-0" onClick={() => { setShowNewSetInput(false); setNewSetName(""); setNewSetCount(1); }}>
                     Отмена
                   </button>
                 </div>
