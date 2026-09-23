@@ -94,6 +94,7 @@ export default function DraftPage() {
   const [addQuery, setAddQuery] = useState("");
   const [addSetId, setAddSetId] = useState<number | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [dropdownHighlight, setDropdownHighlight] = useState(-1);
   const addInputRef = useRef<HTMLInputElement>(null);
 
   // Add new set (custom events)
@@ -235,6 +236,15 @@ export default function DraftPage() {
   const handleSubmit = async () => {
     const updated = await api.events.submit(eventId);
     setEvent(updated);
+  };
+
+  const handleNotifyBoss = async () => {
+    try {
+      await api.events.notifyBoss(eventId);
+      alert("Список подарков отправлен боссу в Telegram ✓");
+    } catch {
+      alert("Ошибка отправки. Проверь настройки Telegram в профиле.");
+    }
   };
 
   const handleRecall = async () => {
@@ -482,12 +492,21 @@ export default function DraftPage() {
           <div className="flex gap-2 ml-auto">
             {/* Submit for approval — employee/admin on draft */}
             {event.status === "draft" && sets.length > 0 && (
-              <button
-                className="btn-primary text-sm flex items-center gap-1.5"
-                onClick={handleSubmit}
-              >
-                Отправить на согласование
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="btn-primary text-sm"
+                  onClick={handleSubmit}
+                >
+                  Согласование
+                </button>
+                <button
+                  className="btn-primary text-sm opacity-70 hover:opacity-100"
+                  onClick={handleNotifyBoss}
+                  title="Отправить список подарков боссу в Telegram для финального подтверждения"
+                >
+                  Согласование БОСС
+                </button>
+              </div>
             )}
 
             {/* Recall to draft — when still pending */}
@@ -770,23 +789,43 @@ export default function DraftPage() {
                             setAddSetId(gs.id);
                             setAddQuery(e.target.value);
                             setShowDropdown(true);
+                            setDropdownHighlight(-1);
                           }}
                           onFocus={() => {
                             setAddSetId(gs.id);
                             if (addQuery.trim()) setShowDropdown(true);
                           }}
-                          onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+                          onBlur={() => setTimeout(() => { setShowDropdown(false); setDropdownHighlight(-1); }, 150)}
+                          onKeyDown={(e) => {
+                            if (!showDropdown || !isAddingToThis) return;
+                            const available = filteredCatalog.filter(en => !currentItems.some(i => i.sku_type === en.sku_type && i.sku_id === en.sku_id));
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setDropdownHighlight(h => Math.min(h + 1, available.length - 1));
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setDropdownHighlight(h => Math.max(h - 1, 0));
+                            } else if (e.key === "Enter") {
+                              e.preventDefault();
+                              const target = dropdownHighlight >= 0 ? available[dropdownHighlight] : (available.length === 1 ? available[0] : null);
+                              if (target) { addItem(gs, target); setDropdownHighlight(-1); }
+                            } else if (e.key === "Escape") {
+                              setShowDropdown(false); setDropdownHighlight(-1);
+                            }
+                          }}
                         />
                         {showDropdown && isAddingToThis && filteredCatalog.length > 0 && (
                           <div className="absolute z-50 left-0 w-[26rem] top-full mt-1 bg-white/95 backdrop-blur border border-black/10 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                          {filteredCatalog.map((entry) => {
+                          {filteredCatalog.map((entry, idx) => {
                             const already = currentItems.some(
                               (i) => i.sku_type === entry.sku_type && i.sku_id === entry.sku_id
                             );
+                            const availIdx = filteredCatalog.filter((_, j) => j < idx && !currentItems.some(i => i.sku_type === filteredCatalog[j].sku_type && i.sku_id === filteredCatalog[j].sku_id)).length;
+                            const highlighted = !already && dropdownHighlight === availIdx;
                             return (
                               <button
                                 key={`${entry.sku_type}-${entry.sku_id}`}
-                                className={`w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left hover:bg-black/5 transition-colors ${already ? "opacity-40 cursor-not-allowed" : ""}`}
+                                className={`w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left transition-colors ${already ? "opacity-40 cursor-not-allowed" : highlighted ? "bg-black/8" : "hover:bg-black/5"}`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => !already && addItem(gs, entry)}
                               >
@@ -814,11 +853,11 @@ export default function DraftPage() {
                         )}
                       </div>
 
-                      <div className="text-sm text-black/50 ml-auto whitespace-nowrap">
-                        Итого набор:{" "}
-                        <span className="font-black text-luxe-black">
-                          {displayTotal.toLocaleString("ru-RU")} ₽
-                        </span>
+                      <div className="text-sm text-black/50 ml-auto whitespace-nowrap text-right">
+                        <div>1 набор: <span className="font-semibold text-luxe-black">{displayTotal.toLocaleString("ru-RU")} ₽</span></div>
+                        {getSetCount(gs) > 1 && (
+                          <div className="text-xs mt-0.5">× {getSetCount(gs)} = <span className="font-black text-luxe-black">{(displayTotal * getSetCount(gs)).toLocaleString("ru-RU")} ₽</span></div>
+                        )}
                       </div>
                     </div>
                   </div>

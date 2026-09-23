@@ -67,10 +67,17 @@ def get_stats(db: Session = Depends(get_db)):
         m["events_count"] += 1
         if ev.gifts_sent:
             m["shipped_count"] += 1
-
-        # cost: use total_budget if set (reflects slider), else we'll leave 0
-        ev_cost = ev.total_budget or 0
-        m["actual_cost"] += ev_cost
+            # actual_cost: only shipped events, bucketed by actual shipped_date
+            shipped_month = ev.shipped_date[:7] if ev.shipped_date else month
+            sm = monthly[shipped_month]
+            sets_for_ev = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
+            ev_cost = 0
+            for gs in sets_for_ev:
+                mult = _set_multiplier(gs, ev)
+                ev_cost += gs.total_price * mult
+            if ev_cost == 0:
+                ev_cost = ev.total_budget or 0
+            sm["actual_cost"] += ev_cost
 
         # items — only for sent events
         if ev.gifts_sent:

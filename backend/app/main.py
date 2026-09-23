@@ -22,6 +22,7 @@ from .services.seed import seed_all
 DB_PATH = os.getenv("DATABASE_URL", "").replace("sqlite:///", "").replace("sqlite://", "") or "/data/face_gifts.db"
 TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TG_CHAT  = os.getenv("TELEGRAM_CHAT_ID", "")
+TG_BOSS_CHAT = os.getenv("TELEGRAM_BOSS_CHAT_ID", "")
 
 
 def _send_db_to_telegram(label: str = "") -> bool:

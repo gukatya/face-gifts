@@ -4,11 +4,31 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 import io
+import os
+import urllib.request
 
 from ..database import get_db
 from ..models import Event, GiftSet
 from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse, DeleteEventPayload
 from .auth import require_admin
+
+
+def _send_telegram_message(chat_id: str, text: str) -> bool:
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token or not chat_id:
+        return False
+    try:
+        data = urllib.parse.urlencode({"chat_id": chat_id, "text": text, "parse_mode": "HTML"}).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        urllib.request.urlopen(req, timeout=15)
+        return True
+    except Exception as e:
+        print(f"[telegram] send failed: {e}")
+        return False
 
 
 class ShipPayload(BaseModel):
@@ -267,6 +287,60 @@ def unship_event(event_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(event)
     return event
+
+
+@router.post("/{event_id}/notify-boss")
+def notify_boss(event_id: int, db: Session = Depends(get_db)):
+    """Send gift list to boss Telegram chat for final approval."""
+    boss_chat = os.getenv("TELEGRAM_BOSS_CHAT_ID", "")
+    if not boss_chat:
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOSS_CHAT_ID не настроен")
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    sets = db.query(GiftSet).filter(GiftSet.event_id == event_id).all()
+    if not sets:
+        raise HTTPException(status_code=400, detail="Наборы не сформированы")
+
+    lines = [f"<b>🎁 Согласование подарков: {event.name}</b>"]
+    lines.append(f"📅 {event.date}  |  📍 {event.country}, {event.region}")
+    lines.append("")
+
+    total_all = 0
+    for gs in sets:
+        count = gs.items and len([i for i in gs.items]) or 0
+        set_total = sum(i.get("price", 0) * i.get("qty", 1) for i in (gs.items or []))
+        multiplier = 1
+        if gs.place not in ("набор", "гран-при", "розыгрыш", "участник"):
+            noms = event.nominations_data or []
+            nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
+            if nom:
+                key = f"place{gs.place}" if gs.place in ("1","2","3") else "place1"
+                multiplier = max(nom.get(key, 1), 1)
+        elif gs.place == "участник":
+            multiplier = max(event.participants_count or 1, 1)
+        elif gs.place == "гран-при":
+            multiplier = max(event.grand_prix_count or 1, 1)
+        elif gs.place == "розыгрыш":
+            multiplier = max(event.giveaways_count or 1, 1)
+
+        lines.append(f"<b>{gs.nomination_name}</b>" + (f" × {multiplier} чел." if multiplier > 1 else ""))
+        for item in (gs.items or []):
+            lines.append(f"  • {item.get('name','')} — {item.get('qty',1)} шт. × {int(item.get('price',0)):,} ₽".replace(",", " "))
+        if multiplier > 1:
+            lines.append(f"  Итого набор: {int(set_total):,} ₽  |  Всего: {int(set_total * multiplier):,} ₽".replace(",", " "))
+        else:
+            lines.append(f"  Итого: {int(set_total):,} ₽".replace(",", " "))
+        total_all += set_total * multiplier
+        lines.append("")
+
+    lines.append(f"<b>💰 ИТОГО: {int(total_all):,} ₽</b>".replace(",", " "))
+    lines.append(f"\nСогласуй отправку через систему FACE Gifts ✅")
+
+    ok = _send_telegram_message(boss_chat, "\n".join(lines))
+    if not ok:
+        raise HTTPException(status_code=502, detail="Не удалось отправить в Telegram")
+    return {"status": "sent"}
 
 
 @router.get("/{event_id}/export")

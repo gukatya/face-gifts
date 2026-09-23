@@ -44,9 +44,14 @@ export default function Layout() {
                 {role === "admin"    && navLink("/knowledge", "Каталог")}
                 {role === "employee" && navLink("/reference", "Памятка")}
               </nav>
-              <span className="hidden sm:inline text-xs text-white/40 tracking-wide">
+              <Link
+                to="/profile"
+                className={`hidden sm:inline text-xs tracking-wide transition-colors ${
+                  loc.pathname === "/profile" ? "text-white font-medium" : "text-white/40 hover:text-white/70"
+                }`}
+              >
                 {name ?? (role === "admin" ? "Администратор" : "Сотрудник")}
-              </span>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-xs text-white/40 hover:text-white/70 transition-colors tracking-wide"

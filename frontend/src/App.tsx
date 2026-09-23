@@ -9,6 +9,7 @@ import KnowledgePage from "./pages/KnowledgePage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReferencePage from "./pages/ReferencePage";
 import ProposalsPage from "./pages/ProposalsPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { role } = useAuth();
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="events/new" element={<NewEventPage />} />
         <Route path="events/:id/edit" element={<NewEventPage />} />
         <Route path="events/:id/draft" element={<DraftPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

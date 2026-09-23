@@ -87,6 +87,8 @@ export const api = {
       request<Event>(`/events/${id}/approve`, { method: "PATCH" }),
     unapprove: (id: number) =>
       request<Event>(`/events/${id}/unapprove`, { method: "PATCH" }),
+    notifyBoss: (id: number) =>
+      request<{ status: string }>(`/events/${id}/notify-boss`, { method: "POST" }),
   },
   calculator: {
     calc: (data: { nominations: Nomination[]; grand_prix_count: number; giveaways_count: number; participants_count: number }) =>

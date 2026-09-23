@@ -72,8 +72,6 @@ export default function DashboardPage() {
   const [newProposalsCount, setNewProposalsCount] = useState(0);
   const [trash, setTrash] = useState<Event[]>([]);
   const [trashOpen, setTrashOpen] = useState(false);
-  const [tgSending, setTgSending] = useState(false);
-
   useEffect(() => {
     api.events.list().then(setEvents).finally(() => setLoading(false));
     api.proposals.stats().then((s) => setNewProposalsCount(s.new_count)).catch(() => {});
@@ -169,37 +167,6 @@ export default function DashboardPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          {role === "admin" && (
-            <>
-              <a
-                href={api.admin.backupDownloadUrl()}
-                download
-                className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-luxe-grey-mid/40 text-luxe-grey-mid hover:bg-luxe-grey-mid/10 transition-colors"
-                title="Скачать базу данных"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Бэкап
-              </a>
-              <button
-                onClick={async () => {
-                  setTgSending(true);
-                  try { await api.admin.sendBackupToTelegram(); alert("Бэкап отправлен в Telegram ✓"); }
-                  catch { alert("Не удалось отправить. Настроены ли переменные окружения TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID?"); }
-                  finally { setTgSending(false); }
-                }}
-                disabled={tgSending}
-                className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-luxe-grey-mid/40 text-luxe-grey-mid hover:bg-luxe-grey-mid/10 transition-colors disabled:opacity-50"
-                title="Отправить бэкап в Telegram"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                {tgSending ? "Отправка..." : "→ TG"}
-              </button>
-            </>
-          )}
           <Link to="/events/new" className="btn-primary flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
