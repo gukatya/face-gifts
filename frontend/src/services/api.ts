@@ -203,6 +203,7 @@ export const api = {
       category?: string;
       warehouse?: string;
       event_type?: string;
+      master_names?: string[];
     }) => {
       const p = new URLSearchParams();
       if (params.date_from) p.set("date_from", params.date_from);
@@ -211,6 +212,7 @@ export const api = {
       if (params.category) p.set("category", params.category);
       if (params.warehouse) p.set("warehouse", params.warehouse);
       if (params.event_type) p.set("event_type", params.event_type);
+      if (params.master_names?.length) p.set("master_names", params.master_names.join("|||"));
       const qs = p.toString() ? `?${p.toString()}` : "";
       return request<{
         items: { name: string; sku_type: string; category: string; volume_ml: string; qty: number; total_price: number }[];

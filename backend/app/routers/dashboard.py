@@ -165,6 +165,7 @@ def items_report(
     category: Optional[str] = Query(None),      # consumable sub-category (Сеты / Сэмплы / etc.)
     warehouse: Optional[str] = Query(None),     # Россия / Европа
     event_type: Optional[str] = Query(None),    # comma-separated event types
+    master_names: Optional[str] = Query(None),  # comma-separated created_by values (any match)
     db: Session = Depends(get_db),
 ):
     """Items shipment report for a custom date range with filters."""
@@ -177,6 +178,13 @@ def items_report(
         types = [t.strip() for t in event_type.split(",") if t.strip()]
         if types:
             q = q.filter(Event.event_type.in_(types))
+
+    if master_names:
+        names = [n.strip() for n in master_names.split("|||") if n.strip()]
+        if names:
+            from sqlalchemy import or_, func
+            conditions = [func.lower(Event.created_by) == name.lower() for name in names]
+            q = q.filter(or_(*conditions))
 
     events = q.all()
 

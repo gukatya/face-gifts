@@ -243,6 +243,7 @@ export default function AnalyticsPage() {
   const [itemsCategory, setItemsCategory] = useState<string>("");
   const [itemsWarehouse, setItemsWarehouse] = useState<string>("");
   const [itemsEventTypes, setItemsEventTypes] = useState<string[]>([]);
+  const [itemsMasterGroup, setItemsMasterGroup] = useState<string>(""); // normalized master group key
   const [itemsSearch, setItemsSearch] = useState<string>("");
   const [itemsReport, setItemsReport] = useState<{
     items: { name: string; sku_type: string; category: string; volume_ml: string; qty: number; total_price: number }[];
@@ -271,6 +272,84 @@ export default function AnalyticsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Fuzzy name normalization: sort words alphabetically, lowercase → groups duplicates
+  function normalizeName(name: string): string {
+    return name.toLowerCase().trim().split(/\s+/).sort().join(" ");
+  }
+
+  // Build master groups from мастер-класс events
+  const masterGroups: Map<string, { display: string; names: string[] }> = (() => {
+    const map = new Map<string, { display: string; names: string[] }>();
+    events
+      .filter((e) => e.event_type === "мастер-класс" && e.created_by)
+      .forEach((e) => {
+        const raw = e.created_by!;
+        const key = normalizeName(raw);
+        if (!map.has(key)) {
+          map.set(key, { display: raw, names: [raw] });
+        } else {
+          const g = map.get(key)!;
+          if (!g.names.includes(raw)) g.names.push(raw);
+        }
+      });
+    return map;
+  })();
+
+  const selectedMasterNames = itemsMasterGroup
+    ? masterGroups.get(itemsMasterGroup)?.names ?? []
+    : [];
+
+  const exportItemsReport = () => {
+    const searchLower = itemsSearch.toLowerCase();
+    const filtered = (itemsReport?.items ?? []).filter((item) =>
+      !itemsSearch || item.name.toLowerCase().includes(searchLower)
+    );
+    if (filtered.length === 0) return;
+
+    const filterLines: string[] = [];
+    if (itemsDateFrom || itemsDateTo) filterLines.push(`Дата отгрузки: ${itemsDateFrom || "—"} — ${itemsDateTo || "—"}`);
+    if (itemsWarehouse) filterLines.push(`Склад: ${itemsWarehouse}`);
+    if (itemsSkuType !== "all") filterLines.push(`Тип позиции: ${itemsSkuType}`);
+    if (itemsCategory) filterLines.push(`Подкатегория: ${itemsCategory}`);
+    if (itemsEventTypes.length > 0) filterLines.push(`Тип мероприятия: ${itemsEventTypes.map((t) => EVENT_TYPE_LABEL[t] ?? t).join(", ")}`);
+    if (itemsMasterGroup) filterLines.push(`Мастер: ${masterGroups.get(itemsMasterGroup)?.display ?? itemsMasterGroup}`);
+    if (itemsSearch) filterLines.push(`Поиск: ${itemsSearch}`);
+
+    const rows: string[][] = [];
+    rows.push(["Отчёт по позициям FACE Gifts"]);
+    rows.push([`Выгружено: ${new Date().toLocaleDateString("ru-RU")}`]);
+    if (filterLines.length > 0) {
+      rows.push(["Фильтры:"]);
+      filterLines.forEach((l) => rows.push([`  ${l}`]));
+    }
+    rows.push([]);
+    rows.push(["#", "Позиция", "Тип", "Объём", "Категория", "Кол-во", "Сумма, ₽"]);
+    filtered.forEach((item, i) => {
+      rows.push([
+        String(i + 1),
+        item.name,
+        item.sku_type === "pigment" ? "Пигмент" : item.sku_type === "sample" ? "Мини-сэт" : item.sku_type === "consumable" ? "Расходник" : "Сертификат",
+        item.volume_ml || "",
+        item.category || "",
+        String(item.qty),
+        item.total_price > 0 ? String(Math.round(item.total_price)) : "0",
+      ]);
+    });
+    const totalQty = filtered.reduce((s, i) => s + i.qty, 0);
+    const totalPrice = filtered.reduce((s, i) => s + i.total_price, 0);
+    rows.push(["", "ИТОГО", "", "", "", String(totalQty), String(Math.round(totalPrice))]);
+
+    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";")).join("\n");
+    const bom = "﻿";
+    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `FACE_items_report_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const loadItemsReport = useCallback(() => {
     setItemsLoading(true);
     api.dashboard.itemsReport({
@@ -280,8 +359,9 @@ export default function AnalyticsPage() {
       category: itemsCategory || undefined,
       warehouse: itemsWarehouse || undefined,
       event_type: itemsEventTypes.length > 0 ? itemsEventTypes.join(",") : undefined,
+      master_names: selectedMasterNames.length > 0 ? selectedMasterNames : undefined,
     }).then(setItemsReport).finally(() => setItemsLoading(false));
-  }, [itemsDateFrom, itemsDateTo, itemsSkuType, itemsCategory, itemsWarehouse, itemsEventTypes]);
+  }, [itemsDateFrom, itemsDateTo, itemsSkuType, itemsCategory, itemsWarehouse, itemsEventTypes, selectedMasterNames.join("|")]);
 
   useEffect(() => { loadItemsReport(); }, [loadItemsReport]);
 
@@ -560,7 +640,21 @@ export default function AnalyticsPage() {
 
       {/* ── 4. Items report ── */}
       <section>
-        <h2 className="section-title mb-4">Отчёт по позициям</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title">Отчёт по позициям</h2>
+          {(itemsReport?.items ?? []).length > 0 && (
+            <button
+              onClick={exportItemsReport}
+              className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
+              title="Скачать CSV с текущими фильтрами"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Экспорт CSV
+            </button>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="card mb-4 space-y-4">
@@ -661,9 +755,13 @@ export default function AnalyticsPage() {
                 return (
                   <button
                     key={t}
-                    onClick={() => setItemsEventTypes((prev) =>
-                      active ? prev.filter((x) => x !== t) : [...prev, t]
-                    )}
+                    onClick={() => {
+                      setItemsEventTypes((prev) =>
+                        active ? prev.filter((x) => x !== t) : [...prev, t]
+                      );
+                      // Clear master filter if мастер-класс deselected
+                      if (t === "мастер-класс" && active) setItemsMasterGroup("");
+                    }}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                       active
                         ? "bg-luxe-black text-white border-luxe-black"
@@ -677,13 +775,37 @@ export default function AnalyticsPage() {
               {itemsEventTypes.length > 0 && (
                 <button
                   className="text-xs px-2 py-1 text-black/30 hover:text-black/60"
-                  onClick={() => setItemsEventTypes([])}
+                  onClick={() => { setItemsEventTypes([]); setItemsMasterGroup(""); }}
                 >
                   Сбросить
                 </button>
               )}
             </div>
           </div>
+
+          {/* Master sub-filter — shown when мастер-класс is selected */}
+          {(itemsEventTypes.includes("мастер-класс") || itemsEventTypes.length === 0) && masterGroups.size > 0 && (
+            <div>
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Мастер (обучение)</label>
+              <select
+                className="input text-sm py-1.5 px-3 w-full sm:w-72"
+                value={itemsMasterGroup}
+                onChange={(e) => setItemsMasterGroup(e.target.value)}
+              >
+                <option value="">Все мастера</option>
+                {Array.from(masterGroups.entries()).sort((a, b) => a[1].display.localeCompare(b[1].display, "ru")).map(([key, g]) => (
+                  <option key={key} value={key}>
+                    {g.display}{g.names.length > 1 ? ` (+${g.names.length - 1} вар.)` : ""}
+                  </option>
+                ))}
+              </select>
+              {itemsMasterGroup && masterGroups.get(itemsMasterGroup)!.names.length > 1 && (
+                <p className="text-xs text-black/30 mt-1">
+                  Варианты написания: {masterGroups.get(itemsMasterGroup)!.names.join(", ")}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Results table */}
