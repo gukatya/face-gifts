@@ -133,6 +133,7 @@ export default function NewEventPage() {
   const isEditMode = Boolean(id);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<EventCreate>(defaultForm);
+  const [loadingEvent, setLoadingEvent] = useState(isEditMode);
   const [resolvedRegion, setResolvedRegion] = useState("");
   const [calcLevels, setCalcLevels] = useState<CalcLevels | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
@@ -172,6 +173,7 @@ export default function NewEventPage() {
           training_format: event.training_format ?? "Базовое обучение",
         });
         setResolvedRegion(event.region || "");
+        setLoadingEvent(false);
       });
     }
   }, [isEditMode, id]);
@@ -329,6 +331,10 @@ export default function NewEventPage() {
       {error && (
         <div className="mb-4 p-4 bg-black/5 border border-black/10 rounded-xl text-sm text-black/70">{error}</div>
       )}
+
+      {loadingEvent ? (
+        <div className="card text-center py-12 text-black/40 text-sm">Загружаем...</div>
+      ) : <>
 
       {/* ══ STEP 1 ══════════════════════════════════════════════════════════ */}
       {step === 1 && (
@@ -799,6 +805,7 @@ export default function NewEventPage() {
           </div>
         </div>
       )}
+      </> }
     </div>
   );
 }

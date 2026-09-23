@@ -60,6 +60,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
         country=payload.country,
         region=region,
         warehouse=payload.warehouse,
+        event_type=payload.event_type,
         recipients=payload.recipients,
         mode=payload.mode,
         level=payload.level,
@@ -73,6 +74,9 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
         total_budget=payload.total_budget,
         participants_budget=payload.participants_budget,
         participants_use_certificate=payload.participants_use_certificate,
+        created_by=payload.created_by,
+        comment=payload.comment,
+        training_format=payload.training_format,
         status="draft",
     )
     db.add(event)

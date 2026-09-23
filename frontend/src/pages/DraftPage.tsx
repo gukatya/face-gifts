@@ -418,9 +418,6 @@ export default function DraftPage() {
             <span>{event.date}</span>
             <span>{event.region}</span>
             <span>{event.warehouse}</span>
-            <span className={`badge ${LEVEL_COLORS[event.level] ?? "bg-black/10 text-black/50"}`}>
-              {event.level}
-            </span>
             <span className={`badge ${
               event.status === "draft"    ? "bg-black/10 text-black/50"
               : event.status === "approved" ? "bg-luxe-black text-white"
@@ -449,13 +446,15 @@ export default function DraftPage() {
           >
             Редактировать
           </button>
-          <button
-            className="btn-secondary text-sm"
-            onClick={handleGenerate}
-            disabled={generating}
-          >
-            {generating ? "Подбираем..." : "Другой вариант"}
-          </button>
+          {event.event_type === "чемпионат" && (
+            <button
+              className="btn-secondary text-sm"
+              onClick={handleGenerate}
+              disabled={generating}
+            >
+              {generating ? "Подбираем..." : "Другой вариант"}
+            </button>
+          )}
 
           {/* Export buttons */}
           {sets.length > 0 && (
@@ -533,7 +532,7 @@ export default function DraftPage() {
 
       {/* Summary */}
       {sets.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className={`grid grid-cols-1 gap-4 mb-6 ${event.event_type === "чемпионат" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <div className="card text-center">
             <div className="text-2xl font-black text-luxe-black">{totalGiftCount}</div>
             <div className="text-xs text-black/40 mt-0.5">подарков итого</div>
@@ -541,7 +540,7 @@ export default function DraftPage() {
               <div className="text-xs text-black/30">{sets.length} видов наборов</div>
             )}
           </div>
-          {event.event_type === "чемпионат" ? (() => {
+          {event.event_type === "чемпионат" && (() => {
             const planned = event.total_budget && event.total_budget > 0 ? event.total_budget : totalCost;
             const sliderVal = targetBudget ?? planned;
             const sliderMin = Math.max(5000, Math.round(planned * 0.3 / 1000) * 1000);
@@ -583,13 +582,13 @@ export default function DraftPage() {
                 </div>
               </div>
             );
-          })() : <div className="card col-span-1 flex items-center justify-center text-black/30 text-sm">Ручной набор</div>}
+          })()}
           <div className="card text-center">
             <div className="text-2xl font-black text-luxe-black">
               {totalCost.toLocaleString("ru-RU")} ₽
             </div>
             <div className="text-xs text-black/40 mt-0.5">итого по мероприятию</div>
-            {event.total_budget && event.total_budget > 0 && (
+            {event.event_type === "чемпионат" && event.total_budget && event.total_budget > 0 && (
               <div className={`text-xs mt-1 font-medium ${
                 totalCost > event.total_budget * 1.05
                   ? "text-black/60"
@@ -606,10 +605,36 @@ export default function DraftPage() {
       {/* Sets */}
       {sets.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-black/40 mb-4">Черновик ещё не сформирован</p>
-          <button className="btn-primary" onClick={handleGenerate}>
-            Сформировать набор
-          </button>
+          {event.event_type === "чемпионат" ? (
+            <>
+              <p className="text-black/40 mb-4">Черновик ещё не сформирован</p>
+              <button className="btn-primary" onClick={handleGenerate}>
+                Сформировать набор
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-black/40 mb-4">Наборов пока нет — добавь первый</p>
+              {showNewSetInput ? (
+                <div className="flex items-center gap-3 max-w-sm mx-auto">
+                  <input
+                    autoFocus
+                    className="input flex-1"
+                    placeholder="Название набора"
+                    value={newSetName}
+                    onChange={(e) => setNewSetName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addNewSet(); if (e.key === "Escape") { setShowNewSetInput(false); setNewSetName(""); } }}
+                  />
+                  <button className="btn-primary text-sm px-4" onClick={addNewSet} disabled={addingSet}>{addingSet ? "..." : "Добавить"}</button>
+                  <button className="btn-secondary text-sm px-3" onClick={() => { setShowNewSetInput(false); setNewSetName(""); }}>Отмена</button>
+                </div>
+              ) : (
+                <button className="btn-primary" onClick={() => setShowNewSetInput(true)}>
+                  + Добавить набор
+                </button>
+              )}
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -636,9 +661,6 @@ export default function DraftPage() {
                     {event.event_type === "чемпионат" && (
                       <span className="text-sm text-black/40">{PLACE_LABELS[gs.place] ?? gs.place}</span>
                     )}
-                    <span className={`badge ${LEVEL_COLORS[gs.level] ?? "bg-black/10 text-black/50"}`}>
-                      {gs.level}
-                    </span>
                   </button>
 
                   <div className="flex items-center gap-3">
