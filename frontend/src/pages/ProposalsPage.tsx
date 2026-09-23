@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 import type { Proposal, ProposalCreate, ProposalMessage, ProposalPerk } from "../types";
 
 // ─── Perks dictionary ────────────────────────────────────────────────────────
@@ -335,6 +336,7 @@ function ProposalCard({ proposal, onDecide, onEdit, onDelete, onOpenChat }: {
   onDelete: (p: Proposal) => void;
   onOpenChat: (p: Proposal) => void;
 }) {
+  const { role } = useAuth();
   const [showRaw, setShowRaw] = useState(false);
   const isNew = proposal.status === "new";
   const isChat = proposal.status === "chat";
@@ -430,7 +432,7 @@ function ProposalCard({ proposal, onDecide, onEdit, onDelete, onOpenChat }: {
 
       {/* Actions */}
       <div className="flex flex-col gap-2 pt-1 border-t border-black/5">
-        {(isNew || isChat) && (
+        {role === "admin" && (isNew || isChat) && (
           <div className="flex gap-2">
             <button
               className="btn-primary text-sm py-1.5 flex-1"

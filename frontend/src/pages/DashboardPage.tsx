@@ -141,7 +141,7 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Proposals notification */}
-      {newProposalsCount > 0 && (
+      {role === "admin" && newProposalsCount > 0 && (
         <Link
           to="/proposals"
           className="flex items-center justify-between gap-3 mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
