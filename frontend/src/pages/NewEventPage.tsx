@@ -5,6 +5,52 @@ import { useAuth } from "../contexts/AuthContext";
 import type { EventCreate, EventType, Nomination, CalcLevels } from "../types";
 import StepIndicator from "../components/StepIndicator";
 
+function SelectField({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="input flex items-center justify-between gap-2 text-left cursor-pointer"
+      >
+        <span>{value}</span>
+        <svg className={`w-4 h-4 text-black/30 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full bg-white border border-black/8 rounded-xl shadow-xl overflow-hidden py-1">
+          {options.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => { onChange(o); setOpen(false); }}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 flex items-center gap-2.5 ${o === value ? "font-semibold text-luxe-black" : "text-black/70"}`}
+            >
+              <span className={`w-3.5 h-3.5 shrink-0 rounded-full border transition-colors ${o === value ? "bg-luxe-black border-luxe-black" : "border-black/20"}`} />
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TRAINING_FORMAT_OPTIONS = ["Базовое обучение", "Мастер-класс", "Другое"];
 
 const NOMINATION_OPTIONS = [
@@ -54,6 +100,7 @@ const defaultForm: EventCreate = {
   participants_use_certificate: false,
   comment: "",
   training_format: "Базовое обучение",
+  city: null,
 };
 
 // ─── Country autocomplete ────────────────────────────────────────────────────
@@ -171,6 +218,7 @@ export default function NewEventPage() {
           total_budget: event.total_budget ?? undefined,
           comment: event.comment ?? "",
           training_format: event.training_format ?? "Базовое обучение",
+          city: event.city ?? null,
         });
         setResolvedRegion(event.region || "");
         setLoadingEvent(false);
@@ -431,10 +479,11 @@ export default function NewEventPage() {
             </div>
             <div>
               <label className="label">Склад отправки *</label>
-              <select className="input" value={form.warehouse} onChange={(e) => update({ warehouse: e.target.value as "Россия" | "Европа" })}>
-                <option>Россия</option>
-                <option>Европа</option>
-              </select>
+              <SelectField
+                value={form.warehouse}
+                onChange={(v) => update({ warehouse: v as "Россия" | "Европа" })}
+                options={["Россия", "Европа"]}
+              />
             </div>
           </div>
 
@@ -452,24 +501,35 @@ export default function NewEventPage() {
             )}
           </div>
 
+          <div>
+            <label className="label">Город</label>
+            <input
+              className="input"
+              placeholder="Москва"
+              value={form.city ?? ""}
+              onChange={(e) => update({ city: e.target.value || null })}
+            />
+          </div>
+
           {/* Championship-only fields */}
           {!isCustomEvent && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Режим подбора</label>
-                  <select className="input" value={form.mode} onChange={(e) => update({ mode: e.target.value as EventCreate["mode"] })}>
-                    <option value="по номинациям">По номинациям</option>
-                    <option value="универсальный">Универсальный</option>
-                  </select>
+                  <SelectField
+                    value={form.mode === "по номинациям" ? "По номинациям" : "Универсальный"}
+                    onChange={(v) => update({ mode: v === "По номинациям" ? "по номинациям" : "универсальный" })}
+                    options={["По номинациям", "Универсальный"]}
+                  />
                 </div>
                 <div>
                   <label className="label">Кому дарим</label>
-                  <select className="input" value={form.recipients} onChange={(e) => update({ recipients: e.target.value })}>
-                    <option value="только победители">Только победителям</option>
-                    <option value="победители + участники">Победители + участники</option>
-                    <option value="только участникам">Только участникам</option>
-                  </select>
+                  <SelectField
+                    value={form.recipients === "только победители" ? "Только победителям" : form.recipients === "победители + участники" ? "Победители + участники" : "Только участникам"}
+                    onChange={(v) => update({ recipients: v === "Только победителям" ? "только победители" : v === "Победители + участники" ? "победители + участники" : "только участникам" })}
+                    options={["Только победителям", "Победители + участники", "Только участникам"]}
+                  />
                 </div>
               </div>
 

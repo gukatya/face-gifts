@@ -35,6 +35,7 @@ class EventCreate(BaseModel):
     created_by: Optional[str] = None
     comment: Optional[str] = None
     training_format: Optional[str] = None
+    city: Optional[str] = None
 
 
 class EventOut(BaseModel):
@@ -68,6 +69,7 @@ class EventOut(BaseModel):
     created_by: Optional[str] = None
     comment: Optional[str] = None
     training_format: Optional[str] = None
+    city: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

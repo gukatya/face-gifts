@@ -45,7 +45,7 @@ function Select({
         </svg>
       </button>
       {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 min-w-full bg-white/96 backdrop-blur-sm border border-black/8 rounded-xl shadow-xl overflow-hidden py-1">
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full bg-white border border-black/8 rounded-xl shadow-xl overflow-hidden py-1">
           {options.map((o) => (
             <button
               key={o.value}

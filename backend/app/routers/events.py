@@ -97,6 +97,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)):
         created_by=payload.created_by,
         comment=payload.comment,
         training_format=payload.training_format,
+        city=payload.city,
         status="draft",
     )
     db.add(event)

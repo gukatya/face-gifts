@@ -103,6 +103,25 @@ export default function DraftPage() {
   const [addingSet, setAddingSet] = useState(false);
   const [showNewSetInput, setShowNewSetInput] = useState(false);
 
+  // Editing count on existing sets
+  const [editingCountId, setEditingCountId] = useState<number | null>(null);
+  const [editingCountVal, setEditingCountVal] = useState(1);
+
+  const saveSetCount = async (gs: GiftSet, newCount: number) => {
+    if (!event) return;
+    setEditingCountId(null);
+    const count = Math.max(newCount, 1);
+    const noms = [...(event.nominations_data ?? [])] as Nomination[];
+    const idx = noms.findIndex((n) => n.name === gs.nomination_name);
+    if (idx >= 0) noms[idx] = { ...noms[idx], place1: count };
+    else noms.push({ name: gs.nomination_name, place1: count, place2: 1, place3: 1 });
+    const updated = await api.events.update(eventId, {
+      ...buildEventPayload(event),
+      nominations: noms,
+    } as Parameters<typeof api.events.update>[1]);
+    setEvent(updated);
+  };
+
   const load = async () => {
     const [ev, ss] = await Promise.all([api.events.get(eventId), api.events.sets(eventId)]);
     setEvent(ev);
@@ -220,6 +239,7 @@ export default function DraftPage() {
       participants_budget: ev.participants_budget ?? 500,
       participants_use_certificate: ev.participants_use_certificate ?? false,
       total_budget: ev.total_budget,
+      city: (ev as unknown as { city?: string | null }).city ?? null,
       ...overrides,
     };
   };
@@ -718,7 +738,33 @@ export default function DraftPage() {
                   </button>
 
                   <div className="flex items-center gap-3">
-                    {getSetCount(gs) > 1 && (
+                    {event.event_type !== "чемпионат" && (
+                      editingCountId === gs.id ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <span className="text-xs text-black/40">× кол-во:</span>
+                          <input
+                            autoFocus
+                            type="number"
+                            min={1}
+                            className="input text-sm w-14 py-0.5 px-2 text-center"
+                            value={editingCountVal}
+                            onChange={(e) => setEditingCountVal(Math.max(1, parseInt(e.target.value) || 1))}
+                            onBlur={() => saveSetCount(gs, editingCountVal)}
+                            onKeyDown={(e) => { if (e.key === "Enter") saveSetCount(gs, editingCountVal); if (e.key === "Escape") setEditingCountId(null); }}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Изменить количество"
+                          onClick={(e) => { e.stopPropagation(); setEditingCountId(gs.id); setEditingCountVal(getSetCount(gs)); }}
+                          className="text-xs text-black/40 bg-black/10 hover:bg-black/15 px-2 py-0.5 rounded-full transition-colors"
+                        >
+                          × {getSetCount(gs)} чел.
+                        </button>
+                      )
+                    )}
+                    {event.event_type === "чемпионат" && getSetCount(gs) > 1 && (
                       <span className="text-xs text-black/40 bg-black/10 px-2 py-0.5 rounded-full">
                         × {getSetCount(gs)} чел.
                       </span>

@@ -340,8 +340,8 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
                             <span className="font-semibold text-luxe-black truncate">{event.name}</span>
                             <span className={`badge ${st.cls}`}>{st.label}</span>
-                            {event.level && (
-                              <span className="badge bg-luxe-silver/60 text-black/60">{event.level}</span>
+                            {event.event_type && (
+                              <span className="badge bg-black/8 text-black/55">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
                             )}
                             {event.gifts_sent && (
                               <span className="badge bg-luxe-black text-white flex items-center gap-1">
@@ -354,7 +354,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex flex-wrap gap-x-5 gap-y-0.5 text-xs font-light text-black/50">
                             <span>{event.date}</span>
-                            <span>{event.country} / {event.region}</span>
+                            <span>{event.country}{event.city ? ` / ${event.city}` : ""} / {event.region}</span>
                             <span>{event.warehouse}</span>
                             {!isPast && !event.gifts_sent && (
                               <span className={daysToShip <= 0 ? "text-red-500 font-medium" : daysToShip <= 7 ? "text-amber-600 font-medium" : ""}>

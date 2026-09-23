@@ -32,6 +32,7 @@ export interface EventCreate {
   created_by?: string | null;
   comment?: string | null;
   training_format?: string | null;
+  city?: string | null;
 }
 
 export interface Event extends EventCreate {
