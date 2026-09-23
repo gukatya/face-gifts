@@ -93,6 +93,7 @@ _MIGRATIONS = [
     "ALTER TABLE events ADD COLUMN created_by VARCHAR(100)",
     "ALTER TABLE events ADD COLUMN comment TEXT",
     "ALTER TABLE events ADD COLUMN training_format VARCHAR(100)",
+    "ALTER TABLE events ADD COLUMN city VARCHAR(200)",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:
