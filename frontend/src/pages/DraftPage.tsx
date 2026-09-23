@@ -825,7 +825,7 @@ export default function DraftPage() {
                             return (
                               <button
                                 key={`${entry.sku_type}-${entry.sku_id}`}
-                                className={`w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left transition-colors ${already ? "opacity-40 cursor-not-allowed" : highlighted ? "bg-black/8" : "hover:bg-black/5"}`}
+                                className={`w-full flex items-start justify-between gap-3 px-4 py-2.5 text-sm text-left transition-colors border-l-2 ${already ? "opacity-40 cursor-not-allowed border-transparent" : highlighted ? "bg-black/10 border-luxe-black" : "hover:bg-black/5 border-transparent"}`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => !already && addItem(gs, entry)}
                               >
