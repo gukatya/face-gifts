@@ -72,6 +72,7 @@ export default function DashboardPage() {
   const [newProposalsCount, setNewProposalsCount] = useState(0);
   const [trash, setTrash] = useState<Event[]>([]);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [myOnly, setMyOnly] = useState(false);
   useEffect(() => {
     api.events.list().then(setEvents).finally(() => setLoading(false));
     api.proposals.stats().then((s) => setNewProposalsCount(s.new_count)).catch(() => {});
@@ -118,15 +119,14 @@ export default function DashboardPage() {
     setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
   };
 
-  const visibleEvents = role === "employee"
-    ? events.filter((e) => !e.created_by || e.created_by === userName)
-    : events;
+  const visibleEvents = events;
 
   const filtered = sortEvents(
     visibleEvents.filter((e) => {
       const matchSearch = e.name.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === "all" || e.event_type === typeFilter;
-      return matchSearch && matchType;
+      const matchMy = !myOnly || e.created_by === userName;
+      return matchSearch && matchType && matchMy;
     }),
     sort,
   );
@@ -200,34 +200,48 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Фильтр по типу ивента */}
-        {presentTypes.length > 1 && (
-          <div className="flex gap-2 flex-wrap">
+        {/* Фильтр по типу ивента + "Мои" */}
+        <div className="flex gap-2 flex-wrap">
+          {role === "employee" && (
             <button
-              onClick={() => setTypeFilter("all")}
+              onClick={() => setMyOnly((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                typeFilter === "all"
+                myOnly
                   ? "bg-luxe-black text-white border-luxe-black"
                   : "border-black/15 text-black/50 hover:border-black/30"
               }`}
             >
-              Все
+              Мои
             </button>
-            {presentTypes.map((t) => (
+          )}
+          {presentTypes.length > 1 && (
+            <>
               <button
-                key={t}
-                onClick={() => setTypeFilter(t)}
+                onClick={() => setTypeFilter("all")}
                 className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                  typeFilter === t
+                  typeFilter === "all"
                     ? "bg-luxe-black text-white border-luxe-black"
                     : "border-black/15 text-black/50 hover:border-black/30"
                 }`}
               >
-                {EVENT_TYPE_LABELS[t] ?? t}
+                Все
               </button>
-            ))}
-          </div>
-        )}
+              {presentTypes.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTypeFilter(t)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    typeFilter === t
+                      ? "bg-luxe-black text-white border-luxe-black"
+                      : "border-black/15 text-black/50 hover:border-black/30"
+                  }`}
+                >
+                  {EVENT_TYPE_LABELS[t] ?? t}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Delete modal */}
@@ -356,6 +370,9 @@ export default function DashboardPage() {
                             <span>{event.date}</span>
                             <span>{event.country}{event.city ? ` / ${event.city}` : ""} / {event.region}</span>
                             <span>{event.warehouse}</span>
+                            {event.created_by && (
+                              <span className="text-black/35">{event.created_by}</span>
+                            )}
                             {!isPast && !event.gifts_sent && (
                               <span className={daysToShip <= 0 ? "text-red-500 font-medium" : daysToShip <= 7 ? "text-amber-600 font-medium" : ""}>
                                 {daysToShip <= 0
