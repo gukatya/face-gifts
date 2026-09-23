@@ -44,7 +44,7 @@ def _set_multiplier(gs: GiftSet, ev: Event) -> int:
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db)):
-    events = db.query(Event).all()
+    events = db.query(Event).filter(Event.deleted_at.is_(None)).all()
     budgets_rows = db.query(MonthlyBudget).all()
     budgets_map = {b.month: b.planned for b in budgets_rows}
 
@@ -183,7 +183,7 @@ def items_report(
         names = [n.strip() for n in master_names.split("|||") if n.strip()]
         if names:
             from sqlalchemy import or_, func
-            conditions = [func.lower(Event.created_by) == name.lower() for name in names]
+            conditions = [func.lower(Event.name) == name.lower() for name in names]
             q = q.filter(or_(*conditions))
 
     events = q.all()

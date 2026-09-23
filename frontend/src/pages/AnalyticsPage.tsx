@@ -1,7 +1,73 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import type { Event, DashboardStats, DashboardMonthStat } from "../types";
+
+// ─── Custom Select ─────────────────────────────────────────────────────────────
+
+function Select({
+  value,
+  onChange,
+  options,
+  className = "",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="input text-sm py-1.5 px-3 w-full flex items-center justify-between gap-2 text-left cursor-pointer"
+      >
+        <span>{selected?.label ?? "—"}</span>
+        <svg
+          className={`w-3.5 h-3.5 text-black/30 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full bg-white/96 backdrop-blur-sm border border-black/8 rounded-xl shadow-xl overflow-hidden py-1">
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/5 flex items-center gap-2.5 ${
+                o.value === value ? "font-semibold text-luxe-black" : "text-black/70"
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 shrink-0 rounded-full border transition-colors ${
+                o.value === value ? "bg-luxe-black border-luxe-black" : "border-black/20"
+              }`} />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
 
 const ALL_EVENT_TYPES = [
   "чемпионат",
@@ -277,13 +343,13 @@ export default function AnalyticsPage() {
     return name.toLowerCase().trim().split(/\s+/).sort().join(" ");
   }
 
-  // Build master groups from мастер-класс events
+  // Build master groups from мастер-класс events — master name = event.name
   const masterGroups: Map<string, { display: string; names: string[] }> = (() => {
     const map = new Map<string, { display: string; names: string[] }>();
     events
-      .filter((e) => e.event_type === "мастер-класс" && e.created_by)
+      .filter((e) => e.event_type === "мастер-класс" && e.name)
       .forEach((e) => {
-        const raw = e.created_by!;
+        const raw = e.name;
         const key = normalizeName(raw);
         if (!map.has(key)) {
           map.set(key, { display: raw, names: [raw] });
@@ -658,108 +724,108 @@ export default function AnalyticsPage() {
 
         {/* Filters */}
         <div className="card mb-4 space-y-4">
-          {/* Date range */}
-          <div className="flex flex-wrap gap-3 items-end">
+          {/* Row 1: dates + search */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата отгрузки с</label>
-              <input
-                type="date"
-                className="input text-sm py-1.5 px-3 w-40"
-                value={itemsDateFrom}
-                onChange={(e) => setItemsDateFrom(e.target.value)}
-              />
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата с</label>
+              <input type="date" className="input text-sm py-1.5 px-3 w-full"
+                value={itemsDateFrom} onChange={(e) => setItemsDateFrom(e.target.value)} />
             </div>
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">по</label>
-              <input
-                type="date"
-                className="input text-sm py-1.5 px-3 w-40"
-                value={itemsDateTo}
-                onChange={(e) => setItemsDateTo(e.target.value)}
-              />
+              <input type="date" className="input text-sm py-1.5 px-3 w-full"
+                value={itemsDateTo} onChange={(e) => setItemsDateTo(e.target.value)} />
             </div>
-            {(itemsDateFrom || itemsDateTo) && (
-              <button
-                className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5"
-                onClick={() => { setItemsDateFrom(""); setItemsDateTo(""); }}
-              >
-                Сбросить даты
-              </button>
-            )}
+            <div className="col-span-2">
+              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Поиск по позиции</label>
+              <input type="text" className="input text-sm py-1.5 px-3 w-full"
+                placeholder="Marshmallow, Анестезия..."
+                value={itemsSearch} onChange={(e) => setItemsSearch(e.target.value)} />
+            </div>
           </div>
 
-          {/* Search by name */}
-          <div>
-            <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Поиск по позиции</label>
-            <input
-              type="text"
-              className="input text-sm py-1.5 px-3 w-full sm:w-72"
-              placeholder="Например: Marshmallow, Анестезия..."
-              value={itemsSearch}
-              onChange={(e) => setItemsSearch(e.target.value)}
-            />
-          </div>
-
-          {/* Category + sub-category + warehouse */}
-          <div className="flex flex-wrap gap-3">
+          {/* Row 2: type + warehouse + master */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Тип позиции</label>
-              <select
-                className="input text-sm py-1.5 px-3"
+              <Select
                 value={itemsSkuType}
-                onChange={(e) => { setItemsSkuType(e.target.value); setItemsCategory(""); }}
-              >
-                <option value="all">Все позиции</option>
-                <option value="pigment">Только пигменты</option>
-                <option value="consumable">Только расходники</option>
-                <option value="sample">Мини-сэты</option>
-                <option value="certificate">Сертификаты</option>
-              </select>
+                onChange={(v) => { setItemsSkuType(v); setItemsCategory(""); }}
+                options={[
+                  { value: "all", label: "Все позиции" },
+                  { value: "pigment", label: "Пигменты" },
+                  { value: "consumable", label: "Расходники" },
+                  { value: "sample", label: "Мини-сэты" },
+                  { value: "certificate", label: "Сертификаты" },
+                ]}
+              />
             </div>
-            {(itemsSkuType === "consumable" || itemsSkuType === "sample" || itemsSkuType === "all") &&
-              (itemsReport?.consumable_categories ?? []).length > 0 && (
-              <div>
-                <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Подкатегория расходников</label>
-                <select
-                  className="input text-sm py-1.5 px-3"
-                  value={itemsCategory}
-                  onChange={(e) => setItemsCategory(e.target.value)}
-                >
-                  <option value="">Все подкатегории</option>
-                  {(itemsReport?.consumable_categories ?? []).map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Склад</label>
-              <select
-                className="input text-sm py-1.5 px-3"
+              <Select
                 value={itemsWarehouse}
-                onChange={(e) => setItemsWarehouse(e.target.value)}
-              >
-                <option value="">Все склады</option>
-                <option value="Россия">Россия</option>
-                <option value="Европа">Европа</option>
-              </select>
+                onChange={setItemsWarehouse}
+                options={[
+                  { value: "", label: "Все склады" },
+                  { value: "Россия", label: "Россия" },
+                  { value: "Европа", label: "Европа" },
+                ]}
+              />
             </div>
+            {(itemsEventTypes.includes("мастер-класс") || itemsEventTypes.length === 0) && masterGroups.size > 0 && (
+              <div>
+                <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Мастер</label>
+                <Select
+                  value={itemsMasterGroup}
+                  onChange={setItemsMasterGroup}
+                  options={[
+                    { value: "", label: "Все мастера" },
+                    ...Array.from(masterGroups.entries())
+                      .sort((a, b) => a[1].display.localeCompare(b[1].display, "ru"))
+                      .map(([key, g]) => ({
+                        value: key,
+                        label: g.display + (g.names.length > 1 ? ` (+${g.names.length - 1})` : ""),
+                      })),
+                  ]}
+                />
+              </div>
+            )}
+            {(itemsSkuType === "consumable" || itemsSkuType === "sample") &&
+              (itemsReport?.consumable_categories ?? []).length > 0 && (
+              <div>
+                <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Подкатегория</label>
+                <Select
+                  value={itemsCategory}
+                  onChange={setItemsCategory}
+                  options={[
+                    { value: "", label: "Все" },
+                    ...(itemsReport?.consumable_categories ?? []).map((c) => ({ value: c, label: c })),
+                  ]}
+                />
+              </div>
+            )}
           </div>
 
-          {/* Event types */}
+          {/* Row 3: event types with "Все" */}
           <div>
             <label className="block text-xs text-black/40 mb-2 uppercase tracking-wider">Тип мероприятия</label>
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => { setItemsEventTypes([]); setItemsMasterGroup(""); }}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                  itemsEventTypes.length === 0
+                    ? "bg-luxe-black text-white border-luxe-black"
+                    : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
+                }`}
+              >
+                Все
+              </button>
               {ALL_EVENT_TYPES.map((t) => {
                 const active = itemsEventTypes.includes(t);
                 return (
-                  <button
-                    key={t}
+                  <button key={t}
                     onClick={() => {
-                      setItemsEventTypes((prev) =>
-                        active ? prev.filter((x) => x !== t) : [...prev, t]
-                      );
-                      // Clear master filter if мастер-класс deselected
+                      setItemsEventTypes((prev) => active ? prev.filter((x) => x !== t) : [...prev, t]);
                       if (t === "мастер-класс" && active) setItemsMasterGroup("");
                     }}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
@@ -772,40 +838,8 @@ export default function AnalyticsPage() {
                   </button>
                 );
               })}
-              {itemsEventTypes.length > 0 && (
-                <button
-                  className="text-xs px-2 py-1 text-black/30 hover:text-black/60"
-                  onClick={() => { setItemsEventTypes([]); setItemsMasterGroup(""); }}
-                >
-                  Сбросить
-                </button>
-              )}
             </div>
           </div>
-
-          {/* Master sub-filter — shown when мастер-класс is selected */}
-          {(itemsEventTypes.includes("мастер-класс") || itemsEventTypes.length === 0) && masterGroups.size > 0 && (
-            <div>
-              <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Мастер (обучение)</label>
-              <select
-                className="input text-sm py-1.5 px-3 w-full sm:w-72"
-                value={itemsMasterGroup}
-                onChange={(e) => setItemsMasterGroup(e.target.value)}
-              >
-                <option value="">Все мастера</option>
-                {Array.from(masterGroups.entries()).sort((a, b) => a[1].display.localeCompare(b[1].display, "ru")).map(([key, g]) => (
-                  <option key={key} value={key}>
-                    {g.display}{g.names.length > 1 ? ` (+${g.names.length - 1} вар.)` : ""}
-                  </option>
-                ))}
-              </select>
-              {itemsMasterGroup && masterGroups.get(itemsMasterGroup)!.names.length > 1 && (
-                <p className="text-xs text-black/30 mt-1">
-                  Варианты написания: {masterGroups.get(itemsMasterGroup)!.names.join(", ")}
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Results table */}
@@ -892,45 +926,36 @@ export default function AnalyticsPage() {
 
         {/* Geo filters */}
         <div className="card mb-4 space-y-4">
-          <div className="flex flex-wrap gap-3 items-end">
+          <div className="grid grid-cols-2 gap-3 max-w-sm">
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата с</label>
-              <input
-                type="date"
-                className="input text-sm py-1.5 px-3 w-40"
-                value={geoDateFrom}
-                onChange={(e) => setGeoDateFrom(e.target.value)}
-              />
+              <input type="date" className="input text-sm py-1.5 px-3 w-full"
+                value={geoDateFrom} onChange={(e) => setGeoDateFrom(e.target.value)} />
             </div>
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">по</label>
-              <input
-                type="date"
-                className="input text-sm py-1.5 px-3 w-40"
-                value={geoDateTo}
-                onChange={(e) => setGeoDateTo(e.target.value)}
-              />
+              <input type="date" className="input text-sm py-1.5 px-3 w-full"
+                value={geoDateTo} onChange={(e) => setGeoDateTo(e.target.value)} />
             </div>
-            {(geoDateFrom || geoDateTo) && (
-              <button
-                className="text-xs text-black/30 hover:text-black/60 px-2 py-1.5"
-                onClick={() => { setGeoDateFrom(""); setGeoDateTo(""); }}
-              >
-                Сбросить
-              </button>
-            )}
           </div>
           <div>
             <label className="block text-xs text-black/40 mb-2 uppercase tracking-wider">Тип мероприятия</label>
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setGeoEventTypes([])}
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                  geoEventTypes.length === 0
+                    ? "bg-luxe-black text-white border-luxe-black"
+                    : "bg-white/60 border-black/10 text-black/50 hover:border-black/30"
+                }`}
+              >
+                Все
+              </button>
               {ALL_EVENT_TYPES.map((t) => {
                 const active = geoEventTypes.includes(t);
                 return (
-                  <button
-                    key={t}
-                    onClick={() => setGeoEventTypes((prev) =>
-                      active ? prev.filter((x) => x !== t) : [...prev, t]
-                    )}
+                  <button key={t}
+                    onClick={() => setGeoEventTypes((prev) => active ? prev.filter((x) => x !== t) : [...prev, t])}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                       active
                         ? "bg-luxe-black text-white border-luxe-black"
@@ -941,11 +966,6 @@ export default function AnalyticsPage() {
                   </button>
                 );
               })}
-              {geoEventTypes.length > 0 && (
-                <button className="text-xs px-2 py-1 text-black/30 hover:text-black/60" onClick={() => setGeoEventTypes([])}>
-                  Сбросить
-                </button>
-              )}
             </div>
           </div>
         </div>
