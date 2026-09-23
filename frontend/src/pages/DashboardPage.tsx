@@ -339,10 +339,10 @@ export default function DashboardPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
                             <span className="font-semibold text-luxe-black truncate">{event.name}</span>
-                            <span className={`badge ${st.cls}`}>{st.label}</span>
                             {event.event_type && (
-                              <span className="badge bg-black/8 text-black/55">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
+                              <span className="badge border border-black/20 text-black/50 bg-transparent text-xs">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
                             )}
+                            <span className={`badge ${st.cls}`}>{st.label}</span>
                             {event.gifts_sent && (
                               <span className="badge bg-luxe-black text-white flex items-center gap-1">
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

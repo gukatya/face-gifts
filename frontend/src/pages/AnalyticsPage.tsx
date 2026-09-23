@@ -723,7 +723,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Filters */}
-        <div className="card mb-4 space-y-4">
+        <div className="card mb-4 space-y-4 relative z-10">
           {/* Row 1: dates + search */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
@@ -925,7 +925,7 @@ export default function AnalyticsPage() {
         <h2 className="section-title mb-4">По регионам</h2>
 
         {/* Geo filters */}
-        <div className="card mb-4 space-y-4">
+        <div className="card mb-4 space-y-4 relative z-10">
           <div className="grid grid-cols-2 gap-3 max-w-sm">
             <div>
               <label className="block text-xs text-black/40 mb-1 uppercase tracking-wider">Дата с</label>
