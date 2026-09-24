@@ -541,38 +541,37 @@ export default function DraftPage() {
 
           {/* Status-progress group — pushed to the right */}
           <div className="flex gap-2 ml-auto">
-            {/* Submit for approval — employee/admin on draft */}
+            {/* Submit for internal approval — only on draft */}
             {event.status === "draft" && sets.length > 0 && (
-              <div className="flex gap-2">
-                <button
-                  className="btn-primary text-sm"
-                  onClick={handleSubmit}
-                >
-                  Согласование
-                </button>
-                <button
-                  onClick={() => setShowBossPopup(true)}
-                  title="Отправить список подарков боссу в Telegram для финального подтверждения"
-                  className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-all"
-                  style={{
-                    background: event.boss_approval_status === "pending_boss"
-                      ? "rgba(180,140,0,0.7)"
-                      : event.boss_approval_status === "approved_boss"
-                      ? "rgba(0,140,60,0.7)"
-                      : "rgba(30,30,30,0.45)",
-                    backdropFilter: "blur(12px)",
-                    WebkitBackdropFilter: "blur(12px)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
-                  }}
-                >
-                  {event.boss_approval_status === "pending_boss"
-                    ? "⏳ Ожидает БОСС"
+              <button className="btn-primary text-sm" onClick={handleSubmit}>
+                Согласование
+              </button>
+            )}
+
+            {/* Boss approval — always visible when sets exist, independent of internal status */}
+            {sets.length > 0 && (
+              <button
+                onClick={() => setShowBossPopup(true)}
+                title="Отправить список подарков боссу в Telegram для финального подтверждения"
+                className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-all"
+                style={{
+                  background: event.boss_approval_status === "pending_boss"
+                    ? "rgba(180,140,0,0.7)"
                     : event.boss_approval_status === "approved_boss"
-                    ? "✅ Согласовано БОСС"
-                    : "Согласование БОСС"}
-                </button>
-              </div>
+                    ? "rgba(0,140,60,0.7)"
+                    : "rgba(30,30,30,0.45)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+                }}
+              >
+                {event.boss_approval_status === "pending_boss"
+                  ? "⏳ Ожидает БОСС"
+                  : event.boss_approval_status === "approved_boss"
+                  ? "✅ Согласовано БОСС"
+                  : "Согласование БОСС"}
+              </button>
             )}
 
             {/* Recall to draft — when still pending */}
