@@ -90,6 +90,7 @@ class Event(Base):
     created_by = Column(String(100), nullable=True)    # имя пользователя, создавшего ивент
     comment = Column(Text, nullable=True)              # необязательный комментарий
     training_format = Column(String(100), nullable=True)  # формат обучения (для event_type=мастер-класс)
+    city = Column(String(200), nullable=True)
 
     sets = relationship("GiftSet", back_populates="event", cascade="all, delete-orphan")
 
