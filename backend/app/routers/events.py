@@ -363,20 +363,34 @@ def notify_boss(event_id: int, payload: BossApprovalPayload, db: Session = Depen
     xlsx_bytes = export_event_to_excel(event, sets)
     total = _build_total(event, sets)
 
-    # caption for the file message
+    _EVENT_TYPE_TAGS = {
+        "чемпионат": "ЧЕМПИОНАТ",
+        "мастер-класс": "МАСТЕР-КЛАСС",
+        "блоггерская рассылка": "БЛОГГЕРСКАЯ РАССЫЛКА",
+        "партнёрский ивент": "ПАРТНЁРСКИЙ ИВЕНТ",
+        "собственное мероприятие FACE": "МЕРОПРИЯТИЕ FACE",
+        "обучение": "ОБУЧЕНИЕ",
+        "другое": "МЕРОПРИЯТИЕ",
+    }
+    event_tag = _EVENT_TYPE_TAGS.get(event.event_type or "", "МЕРОПРИЯТИЕ")
     city_part = f", {event.city}" if event.city else ""
-    caption_lines = [
-        f"🎁 <b>Согласование подарков</b>",
-        f"<b>{event.name}</b>",
-        f"📅 {event.date}  |  📍 {event.country}{city_part}",
-        f"💰 Итого: {total:,} ₽".replace(",", " "),
+
+    caption_parts = [
+        f"<b>{event_tag}</b>  ·  на согласование",
         "",
+        f"<b>{event.name}</b>",
+        f"{event.date}  ·  {event.country}{city_part}",
+        "",
+        f"Сумма: <b>{total:,} ₽</b>".replace(",", " "),
     ]
-    if payload.sent_by:
-        caption_lines.append(f"✉️ Отправил(а): {payload.sent_by}")
-    if payload.comment:
-        caption_lines.append(f"💬 {payload.comment}")
-    caption = "\n".join(caption_lines)
+    if payload.sent_by or payload.comment:
+        caption_parts.append("")
+        caption_parts.append("─────────────")
+        if payload.sent_by:
+            caption_parts.append(f"Отправил(а): {payload.sent_by}")
+        if payload.comment:
+            caption_parts.append(payload.comment)
+    caption = "\n".join(caption_parts)
 
     inline_keyboard = {
         "inline_keyboard": [[
