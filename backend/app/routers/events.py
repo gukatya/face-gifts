@@ -6,6 +6,7 @@ from typing import Optional
 import io
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -411,6 +412,10 @@ def notify_boss(event_id: int, payload: BossApprovalPayload, db: Session = Depen
         resp = urllib.request.urlopen(req, timeout=30)
         result = json.loads(resp.read())
         msg_id = result.get("result", {}).get("message_id")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode()
+        print(f"[telegram] sendDocument failed: {e.code} {err_body}")
+        raise HTTPException(status_code=502, detail=f"Telegram error {e.code}: {err_body}")
     except Exception as e:
         print(f"[telegram] sendDocument failed: {e}")
         raise HTTPException(status_code=502, detail="Не удалось отправить в Telegram")
