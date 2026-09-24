@@ -4,13 +4,39 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 import io
+import json
 import os
+import urllib.parse
 import urllib.request
 
 from ..database import get_db
 from ..models import Event, GiftSet
 from ..schemas import EventCreate, EventOut, GiftSetOut, GiftSetItemsUpdate, CalcRequest, CalcResponse, DeleteEventPayload
 from .auth import require_admin
+
+TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TG_BOSS_CHAT = os.getenv("TELEGRAM_BOSS_CHAT_ID", "")
+# Comma-separated list of Telegram user IDs allowed to approve
+TG_APPROVER_IDS = set(
+    x.strip() for x in os.getenv("TELEGRAM_APPROVER_IDS", "").split(",") if x.strip()
+)
+
+
+def _tg_api(method: str, **kwargs) -> dict:
+    if not TG_TOKEN:
+        return {}
+    try:
+        data = json.dumps(kwargs).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TG_TOKEN}/{method}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=15)
+        return json.loads(resp.read())
+    except Exception as e:
+        print(f"[telegram] {method} failed: {e}")
+        return {}
 
 
 def _send_telegram_message(chat_id: str, text: str) -> bool:
@@ -290,33 +316,21 @@ def unship_event(event_id: int, db: Session = Depends(get_db)):
     return event
 
 
-@router.post("/{event_id}/notify-boss")
-def notify_boss(event_id: int, db: Session = Depends(get_db)):
-    """Send gift list to boss Telegram chat for final approval."""
-    boss_chat = os.getenv("TELEGRAM_BOSS_CHAT_ID", "")
-    if not boss_chat:
-        raise HTTPException(status_code=503, detail="TELEGRAM_BOSS_CHAT_ID не настроен")
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    sets = db.query(GiftSet).filter(GiftSet.event_id == event_id).all()
-    if not sets:
-        raise HTTPException(status_code=400, detail="Наборы не сформированы")
+class BossApprovalPayload(BaseModel):
+    comment: Optional[str] = None
+    sent_by: Optional[str] = None  # имя сотрудника, нажавшего кнопку
 
-    lines = [f"<b>🎁 Согласование подарков: {event.name}</b>"]
-    lines.append(f"📅 {event.date}  |  📍 {event.country}, {event.region}")
-    lines.append("")
 
+def _build_total(event: Event, sets: list) -> int:
     total_all = 0
     for gs in sets:
-        count = gs.items and len([i for i in gs.items]) or 0
         set_total = sum(i.get("price", 0) * i.get("qty", 1) for i in (gs.items or []))
         multiplier = 1
         if gs.place not in ("набор", "гран-при", "розыгрыш", "участник"):
             noms = event.nominations_data or []
             nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
             if nom:
-                key = f"place{gs.place}" if gs.place in ("1","2","3") else "place1"
+                key = f"place{gs.place}" if gs.place in ("1", "2", "3") else "place1"
                 multiplier = max(nom.get(key, 1), 1)
         elif gs.place == "участник":
             multiplier = max(event.participants_count or 1, 1)
@@ -324,24 +338,90 @@ def notify_boss(event_id: int, db: Session = Depends(get_db)):
             multiplier = max(event.grand_prix_count or 1, 1)
         elif gs.place == "розыгрыш":
             multiplier = max(event.giveaways_count or 1, 1)
-
-        lines.append(f"<b>{gs.nomination_name}</b>" + (f" × {multiplier} чел." if multiplier > 1 else ""))
-        for item in (gs.items or []):
-            lines.append(f"  • {item.get('name','')} — {item.get('qty',1)} шт. × {int(item.get('price',0)):,} ₽".replace(",", " "))
-        if multiplier > 1:
-            lines.append(f"  Итого набор: {int(set_total):,} ₽  |  Всего: {int(set_total * multiplier):,} ₽".replace(",", " "))
-        else:
-            lines.append(f"  Итого: {int(set_total):,} ₽".replace(",", " "))
         total_all += set_total * multiplier
-        lines.append("")
+    return int(total_all)
 
-    lines.append(f"<b>💰 ИТОГО: {int(total_all):,} ₽</b>".replace(",", " "))
-    lines.append(f"\nСогласуй отправку через систему FACE Gifts ✅")
 
-    ok = _send_telegram_message(boss_chat, "\n".join(lines))
-    if not ok:
+@router.post("/{event_id}/notify-boss")
+def notify_boss(event_id: int, payload: BossApprovalPayload, db: Session = Depends(get_db)):
+    """Send Excel + approval buttons to boss Telegram chat."""
+    boss_chat = TG_BOSS_CHAT or os.getenv("TELEGRAM_BOSS_CHAT_ID", "")
+    if not boss_chat:
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOSS_CHAT_ID не настроен")
+    if not TG_TOKEN:
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOT_TOKEN не настроен")
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    sets = db.query(GiftSet).filter(GiftSet.event_id == event_id).all()
+    if not sets:
+        raise HTTPException(status_code=400, detail="Наборы не сформированы")
+
+    # generate Excel
+    xlsx_bytes = export_event_to_excel(event, sets)
+    total = _build_total(event, sets)
+
+    # caption for the file message
+    city_part = f", {event.city}" if event.city else ""
+    caption_lines = [
+        f"🎁 <b>Согласование подарков</b>",
+        f"<b>{event.name}</b>",
+        f"📅 {event.date}  |  📍 {event.country}{city_part}",
+        f"💰 Итого: {total:,} ₽".replace(",", " "),
+        "",
+    ]
+    if payload.sent_by:
+        caption_lines.append(f"✉️ Отправил(а): {payload.sent_by}")
+    if payload.comment:
+        caption_lines.append(f"💬 {payload.comment}")
+    caption = "\n".join(caption_lines)
+
+    inline_keyboard = {
+        "inline_keyboard": [[
+            {"text": "✅ Согласовано", "callback_data": f"boss_approve:{event_id}"},
+            {"text": "❌ Не согласовано", "callback_data": f"boss_reject:{event_id}"},
+        ]]
+    }
+
+    # send document with inline keyboard
+    filename = f"FACE_Gift_{event.name.replace(' ', '_')}.xlsx"
+    boundary = "----FaceBoundary"
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{boss_chat}\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="parse_mode"\r\n\r\nHTML\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="reply_markup"\r\n\r\n{json.dumps(inline_keyboard, ensure_ascii=False)}\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="document"; filename="{filename}"\r\n'
+        f"Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n"
+    ).encode() + xlsx_bytes + f"\r\n--{boundary}--\r\n".encode()
+
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TG_TOKEN}/sendDocument",
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=30)
+        result = json.loads(resp.read())
+        msg_id = result.get("result", {}).get("message_id")
+    except Exception as e:
+        print(f"[telegram] sendDocument failed: {e}")
         raise HTTPException(status_code=502, detail="Не удалось отправить в Telegram")
-    return {"status": "sent"}
+
+    # save state
+    event.boss_approval_status = "pending_boss"
+    event.boss_approval_comment = payload.comment
+    event.boss_tg_message_id = msg_id
+    db.commit()
+    db.refresh(event)
+    return {"status": "sent", "message_id": msg_id}
 
 
 @router.get("/{event_id}/export")

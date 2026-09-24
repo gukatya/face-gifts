@@ -68,7 +68,7 @@ export default function DraftPage() {
   const { id } = useParams<{ id: string }>();
   const eventId = Number(id);
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, name: userName } = useAuth();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [sets, setSets] = useState<GiftSet[]>([]);
@@ -106,6 +106,11 @@ export default function DraftPage() {
   // Editing count on existing sets
   const [editingCountId, setEditingCountId] = useState<number | null>(null);
   const [editingCountVal, setEditingCountVal] = useState(1);
+
+  // Boss approval popup
+  const [showBossPopup, setShowBossPopup] = useState(false);
+  const [bossComment, setBossComment] = useState("");
+  const [sendingBoss, setSendingBoss] = useState(false);
 
   const saveSetCount = async (gs: GiftSet, newCount: number) => {
     if (!event) return;
@@ -275,11 +280,21 @@ export default function DraftPage() {
   };
 
   const handleNotifyBoss = async () => {
+    if (!event) return;
+    setSendingBoss(true);
     try {
-      await api.events.notifyBoss(eventId);
-      alert("Список подарков отправлен боссу в Telegram ✓");
+      await api.events.notifyBoss(eventId, {
+        comment: bossComment.trim() || undefined,
+        sent_by: userName || undefined,
+      });
+      setShowBossPopup(false);
+      setBossComment("");
+      const updated = await api.events.get(eventId);
+      setEvent(updated);
     } catch {
-      alert("Ошибка отправки. Проверь настройки Telegram в профиле.");
+      alert("Ошибка отправки. Проверь настройки Telegram.");
+    } finally {
+      setSendingBoss(false);
     }
   };
 
@@ -536,20 +551,26 @@ export default function DraftPage() {
                   Согласование
                 </button>
                 <button
-                  onClick={handleNotifyBoss}
+                  onClick={() => setShowBossPopup(true)}
                   title="Отправить список подарков боссу в Telegram для финального подтверждения"
                   className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-all"
                   style={{
-                    background: "rgba(30,30,30,0.45)",
+                    background: event.boss_approval_status === "pending_boss"
+                      ? "rgba(180,140,0,0.7)"
+                      : event.boss_approval_status === "approved_boss"
+                      ? "rgba(0,140,60,0.7)"
+                      : "rgba(30,30,30,0.45)",
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
                     border: "1px solid rgba(255,255,255,0.12)",
                     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(30,30,30,0.65)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(30,30,30,0.45)"; }}
                 >
-                  Согласование БОСС
+                  {event.boss_approval_status === "pending_boss"
+                    ? "⏳ Ожидает БОСС"
+                    : event.boss_approval_status === "approved_boss"
+                    ? "✅ Согласовано БОСС"
+                    : "Согласование БОСС"}
                 </button>
               </div>
             )}
@@ -987,6 +1008,48 @@ export default function DraftPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Boss approval popup */}
+      {showBossPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowBossPopup(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-lg font-semibold">Отправить на согласование боссу</h2>
+            <p className="text-sm text-black/50">
+              Убедись, что всё готово. В групповой чат упадёт Excel-файл с деталями заказа и кнопками для согласования.
+            </p>
+            <div>
+              <label className="label">Комментарий (необязательно)</label>
+              <textarea
+                className="input resize-none"
+                rows={3}
+                placeholder="Срочность, особые договорённости, примечания..."
+                value={bossComment}
+                onChange={(e) => setBossComment(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                className="btn-secondary text-sm"
+                onClick={() => { setShowBossPopup(false); setBossComment(""); }}
+                disabled={sendingBoss}
+              >
+                Отмена
+              </button>
+              <button
+                className="btn-primary text-sm"
+                onClick={handleNotifyBoss}
+                disabled={sendingBoss}
+              >
+                {sendingBoss ? "Отправляю..." : "Отправить ✈️"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

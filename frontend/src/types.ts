@@ -48,6 +48,9 @@ export interface Event extends EventCreate {
   created_by?: string | null;
   comment?: string | null;
   training_format?: string | null;
+  agreed_by?: string | null;
+  boss_approval_status?: "pending_boss" | "approved_boss" | "rejected_boss" | null;
+  boss_approval_comment?: string | null;
 }
 
 export type DeleteReason = "ошибка" | "отказ" | "напрямую";

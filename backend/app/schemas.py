@@ -36,6 +36,7 @@ class EventCreate(BaseModel):
     comment: Optional[str] = None
     training_format: Optional[str] = None
     city: Optional[str] = None
+    agreed_by: Optional[str] = None
 
 
 class EventOut(BaseModel):
@@ -70,6 +71,9 @@ class EventOut(BaseModel):
     comment: Optional[str] = None
     training_format: Optional[str] = None
     city: Optional[str] = None
+    agreed_by: Optional[str] = None
+    boss_approval_status: Optional[str] = None
+    boss_approval_comment: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

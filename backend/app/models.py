@@ -91,6 +91,10 @@ class Event(Base):
     comment = Column(Text, nullable=True)              # необязательный комментарий
     training_format = Column(String(100), nullable=True)  # формат обучения (для event_type=мастер-класс)
     city = Column(String(200), nullable=True)
+    agreed_by = Column(String(100), nullable=True)       # кем согласованы подарки внутри команды
+    boss_approval_status = Column(String(20), nullable=True)  # pending_boss / approved_boss / rejected_boss
+    boss_approval_comment = Column(Text, nullable=True)  # комментарий при отправке боссу
+    boss_tg_message_id = Column(Integer, nullable=True)  # ID сообщения в TG для редактирования
 
     sets = relationship("GiftSet", back_populates="event", cascade="all, delete-orphan")
 

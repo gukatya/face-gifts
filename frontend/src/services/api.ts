@@ -87,8 +87,12 @@ export const api = {
       request<Event>(`/events/${id}/approve`, { method: "PATCH" }),
     unapprove: (id: number) =>
       request<Event>(`/events/${id}/unapprove`, { method: "PATCH" }),
-    notifyBoss: (id: number) =>
-      request<{ status: string }>(`/events/${id}/notify-boss`, { method: "POST" }),
+    notifyBoss: (id: number, payload?: { comment?: string; sent_by?: string }) =>
+      request<{ status: string }>(`/events/${id}/notify-boss`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload ?? {}),
+      }),
   },
   calculator: {
     calc: (data: { nominations: Nomination[]; grand_prix_count: number; giveaways_count: number; participants_count: number }) =>

@@ -17,6 +17,7 @@ from sqlalchemy import text
 from .database import Base, engine, get_db
 from .routers import events, knowledge, catalog, budgets, dashboard, proposals
 from .routers.auth import router as auth_router, require_admin
+from .routers.telegram import router as telegram_router
 from .services.seed import seed_all
 
 DB_PATH = os.getenv("DATABASE_URL", "").replace("sqlite:///", "").replace("sqlite://", "") or "/data/face_gifts.db"
@@ -94,6 +95,10 @@ _MIGRATIONS = [
     "ALTER TABLE events ADD COLUMN comment TEXT",
     "ALTER TABLE events ADD COLUMN training_format VARCHAR(100)",
     "ALTER TABLE events ADD COLUMN city VARCHAR(200)",
+    "ALTER TABLE events ADD COLUMN agreed_by VARCHAR(100)",
+    "ALTER TABLE events ADD COLUMN boss_approval_status VARCHAR(20)",
+    "ALTER TABLE events ADD COLUMN boss_approval_comment TEXT",
+    "ALTER TABLE events ADD COLUMN boss_tg_message_id INTEGER",
 ]
 with engine.connect() as _conn:
     for _stmt in _MIGRATIONS:
@@ -126,6 +131,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(proposals.router, prefix="/api")
+app.include_router(telegram_router, prefix="/api")
 
 
 @app.on_event("startup")
@@ -142,6 +148,22 @@ async def on_startup():
         print("[backup] Daily Telegram backup scheduled")
     else:
         print("[backup] TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set — backup disabled")
+    # Register Telegram webhook
+    app_url = os.getenv("APP_URL", "").rstrip("/")
+    if TG_TOKEN and app_url:
+        webhook_url = app_url + "/api/telegram/webhook"
+        try:
+            import urllib.parse as _up
+            data = _up.urlencode({"url": webhook_url}).encode()
+            req = __import__("urllib.request", fromlist=["Request", "urlopen"]).Request(
+                f"https://api.telegram.org/bot{TG_TOKEN}/setWebhook",
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            __import__("urllib.request", fromlist=["urlopen"]).urlopen(req, timeout=10)
+            print(f"[telegram] Webhook set: {webhook_url}")
+        except Exception as e:
+            print(f"[telegram] Webhook setup failed: {e}")
 
 
 @app.get("/health")
