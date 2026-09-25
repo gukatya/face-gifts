@@ -75,8 +75,11 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         return Response(status_code=200)
 
     if action == "boss_approve":
+        from datetime import date
         event.boss_approval_status = "approved_boss"
         event.status = "approved"
+        event.gifts_sent = True
+        event.shipped_date = date.today().isoformat()
         db.commit()
 
         # Edit original message — remove buttons, add approval mark
