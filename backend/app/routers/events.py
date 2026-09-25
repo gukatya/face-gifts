@@ -327,12 +327,16 @@ def _build_total(event: Event, sets: list) -> int:
     for gs in sets:
         set_total = sum(i.get("price", 0) * i.get("qty", 1) for i in (gs.items or []))
         multiplier = 1
-        if gs.place not in ("набор", "гран-при", "розыгрыш", "участник"):
-            noms = event.nominations_data or []
-            nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
+        noms = event.nominations_data or []
+        nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
+        if gs.place in ("1", "2", "3"):
             if nom:
-                key = f"place{gs.place}" if gs.place in ("1", "2", "3") else "place1"
+                key = f"place{gs.place}"
                 multiplier = max(nom.get(key, 1), 1)
+        elif gs.place == "набор":
+            # custom event — count stored in nominations_data place1
+            if nom:
+                multiplier = max(nom.get("place1", 1), 1)
         elif gs.place == "участник":
             multiplier = max(event.participants_count or 1, 1)
         elif gs.place == "гран-при":
