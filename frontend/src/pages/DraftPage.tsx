@@ -858,7 +858,31 @@ export default function DraftPage() {
                                 {SKU_LABEL[item.sku_type] ?? item.sku_type}
                               </span>
                             </td>
-                            <td className="py-1.5 text-center text-black/50">{item.qty}</td>
+                            <td className="py-1.5 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  className="w-5 h-5 rounded text-black/40 hover:text-black hover:bg-black/8 text-sm leading-none transition-all"
+                                  onClick={() => {
+                                    const newQty = Math.max(1, item.qty - 1);
+                                    const updated = (dirtyItems[gs.id] ?? gs.items).map((i: GiftItem) =>
+                                      i.sku_type === item.sku_type && i.sku_id === item.sku_id ? { ...i, qty: newQty } : i
+                                    );
+                                    setDirtyItems((d) => ({ ...d, [gs.id]: updated }));
+                                  }}
+                                >−</button>
+                                <span className="w-5 text-black/60 text-sm">{item.qty}</span>
+                                <button
+                                  className="w-5 h-5 rounded text-black/40 hover:text-black hover:bg-black/8 text-sm leading-none transition-all"
+                                  onClick={() => {
+                                    const newQty = item.qty + 1;
+                                    const updated = (dirtyItems[gs.id] ?? gs.items).map((i: GiftItem) =>
+                                      i.sku_type === item.sku_type && i.sku_id === item.sku_id ? { ...i, qty: newQty } : i
+                                    );
+                                    setDirtyItems((d) => ({ ...d, [gs.id]: updated }));
+                                  }}
+                                >+</button>
+                              </div>
+                            </td>
                             <td className="py-1.5 text-right text-black/60">
                               {item.price.toLocaleString("ru-RU")} ₽
                             </td>
