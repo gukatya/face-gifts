@@ -161,6 +161,7 @@ MINI_SHADE_NAMES = [
     "Сахар", "Джоли", "Меган", "Виктория", "Нуар", "Космос",
     "Дженнифер", "Тайра", "Мокко", "Корица", "Карамель", "Шейк",
     "Ворм", "Лайт", "Кирпичный", "Вишня",
+    "Абрикос", "Детройт", "Щербет",
 ]
 MINI_VOLUME = "3мл"
 # Цены, которыми мини-пигменты были засеяны ДО перехода на формулу
@@ -180,14 +181,19 @@ def seed_mini_pigments(db: Session) -> int:
     for name in MINI_SHADE_NAMES:
         parent = (
             db.query(Pigment)
-            .filter(Pigment.name == name, Pigment.is_mini == False)  # noqa: E712
+            .filter(
+                Pigment.name.in_([name, f"{name} 6 мл"]),
+                Pigment.is_mini == False,  # noqa: E712
+            )
             .filter((Pigment.volume_ml == None) | (Pigment.volume_ml == "6мл"))  # noqa: E711
             .first()
         )
         if not parent:
             continue
 
-        existing = db.query(Pigment).filter(Pigment.name == name, Pigment.is_mini == True).first()  # noqa: E712
+        existing = db.query(Pigment).filter(
+            Pigment.name.in_([name, f"{name} 3 мл"]), Pigment.is_mini == True  # noqa: E712
+        ).first()
         if existing:
             # Одноразовая правка цены для строк, засеянных по старой (фиксированной) схеме.
             if existing.price_ru in _LEGACY_MINI_PRICES:
@@ -257,9 +263,15 @@ def seed_pigment_volume_tiers(db: Session) -> int:
         if not small.volume_ml:
             small.volume_ml = "6мл"
 
+        # Match by base name (strip volume suffix if already appended)
+        base_name = small.name.replace(" 6 мл", "").replace(" 12 мл", "").replace(" 3 мл", "").strip()
         has_large = (
             db.query(Pigment)
-            .filter(Pigment.name == small.name, Pigment.line == small.line, Pigment.volume_ml == "12мл")
+            .filter(
+                Pigment.name.in_([base_name, f"{base_name} 12 мл"]),
+                Pigment.line == small.line,
+                Pigment.volume_ml == "12мл",
+            )
             .first()
         )
         if has_large:
@@ -385,6 +397,100 @@ def seed_collaboration_items(db: Session) -> dict:
     return {"collab_sets_added": sets_added, "pigments_promoted": promoted}
 
 
+REDY_LINE = "Redy"
+_REDY_SHADES = ["Redy 01", "Redy 02", "Redy 03"]
+_REDY_PRICE_SMALL = 1490.0
+_REDY_PRICE_LARGE = 2290.0
+
+
+def seed_redy_pigments(db: Session) -> int:
+    """Add Redy 01-03 lip pigments in 6ml and 12ml volumes."""
+    from sqlalchemy import func as sqlfunc
+    count = 0
+    next_number = _next_pigment_number(db)
+    for shade in _REDY_SHADES:
+        for volume, price in [("6мл", _REDY_PRICE_SMALL), ("12мл", _REDY_PRICE_LARGE)]:
+            existing = db.query(Pigment).filter(
+                Pigment.name == shade, Pigment.volume_ml == volume
+            ).first()
+            if existing:
+                continue
+            p = Pigment(
+                number=next_number,
+                zone="Губы",
+                line=REDY_LINE,
+                name=shade,
+                temperature=None,
+                saturation=None,
+                role="база",
+                fitzpatrick=None,
+                is_corrector=False,
+                geo_europe=True,
+                geo_asia=True,
+                priority="стандарт",
+                price_ru=price,
+                price_eu=None,
+                recommended_mixes=None,
+                notes=f"Объём {volume}",
+                is_mini=False,
+                volume_ml=volume,
+            )
+            db.add(p)
+            count += 1
+            next_number += 1
+    db.commit()
+    return count
+
+
+_PACKAGING_ITEMS = [
+    {"name": "Коробка education 5 шт 6 мл", "price_ru": 0.0},
+    {"name": "Коробка education 8 шт 6 мл", "price_ru": 0.0},
+    {"name": "Коробка education 5 шт 12 мл", "price_ru": 0.0},
+    {"name": "Пакет бумажный сильвер", "price_ru": 0.0},
+]
+
+
+def seed_packaging(db: Session) -> int:
+    """Add УПАКОВКА category consumables."""
+    from sqlalchemy import func as sqlfunc
+    count = 0
+    max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
+    for item in _PACKAGING_ITEMS:
+        existing = db.query(Consumable).filter(Consumable.name == item["name"]).first()
+        if existing:
+            continue
+        max_num += 1
+        c = Consumable(
+            number=max_num,
+            name=item["name"],
+            category="Упаковка",
+            zone=None,
+            price_ru=item["price_ru"],
+            price_eu=None,
+            has_mini=False,
+            gift_priority="средний",
+            notes=None,
+        )
+        db.add(c)
+        count += 1
+    db.commit()
+    return count
+
+
+def seed_pigment_names_with_volume(db: Session) -> int:
+    """Append volume suffix to pigment names that have volume_ml set but no suffix yet."""
+    count = 0
+    pigments = db.query(Pigment).filter(Pigment.volume_ml.isnot(None)).all()
+    for p in pigments:
+        vol = p.volume_ml  # e.g. "6мл"
+        vol_display = vol.replace("мл", " мл")  # "6 мл"
+        if not p.name.endswith(vol_display):
+            p.name = f"{p.name} {vol_display}"
+            count += 1
+    db.commit()
+    return count
+
+
 _EXTRA_NOMINATIONS = [
     {
         "name": "SMP (Скальп микропигментация)",
@@ -415,9 +521,12 @@ def seed_all(db: Session) -> dict:
         "line_renames": seed_normalize_lines(db),
         "volume_tiers": seed_pigment_volume_tiers(db),
         "mini_pigments": seed_mini_pigments(db),
+        "redy_pigments": seed_redy_pigments(db),
         "consumables": seed_consumables(db),
+        "packaging": seed_packaging(db),
         "nominations": seed_nominations(db),
         "extra_nominations": seed_extra_nominations(db),
+        "pigment_names_volume": seed_pigment_names_with_volume(db),
     }
     result.update(seed_collaboration_items(db))
     return result
