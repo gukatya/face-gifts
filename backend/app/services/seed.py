@@ -1,7 +1,7 @@
 from openpyxl import load_workbook
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from ..models import Pigment, Consumable, Nomination, PigmentSettings
+from ..models import Pigment, Consumable, Nomination, PigmentSettings, GiftSet
 from pathlib import Path
 
 
@@ -515,6 +515,30 @@ def seed_extra_nominations(db: Session) -> int:
     return count
 
 
+def sync_giftset_item_names(db: Session) -> int:
+    """Update pigment names in existing gift set items to match current pigment names in DB."""
+    pigment_map = {p.id: p.name for p in db.query(Pigment).all()}
+    count = 0
+    for gs in db.query(GiftSet).all():
+        if not gs.items:
+            continue
+        updated = False
+        new_items = []
+        for item in gs.items:
+            if item.get("sku_type") == "pigment":
+                pid = item.get("sku_id")
+                current_name = pigment_map.get(pid)
+                if current_name and item.get("name") != current_name:
+                    item = {**item, "name": current_name}
+                    count += 1
+                    updated = True
+            new_items.append(item)
+        if updated:
+            gs.items = new_items
+    db.commit()
+    return count
+
+
 def seed_all(db: Session) -> dict:
     result = {
         "pigments": seed_pigments(db),
@@ -527,6 +551,7 @@ def seed_all(db: Session) -> dict:
         "nominations": seed_nominations(db),
         "extra_nominations": seed_extra_nominations(db),
         "pigment_names_volume": seed_pigment_names_with_volume(db),
+        "giftset_names_synced": sync_giftset_item_names(db),
     }
     result.update(seed_collaboration_items(db))
     return result
