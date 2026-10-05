@@ -45,6 +45,13 @@ _USERS = {
         "role": "employee",
         "token": EMPLOYEE_TOKEN,
     },
+    "nastya": {
+        "name": "Настя",
+        "position": "SMM",
+        "password": os.getenv("NASTYA_PASSWORD", "nastya-face-2025"),
+        "role": "employee",
+        "token": EMPLOYEE_TOKEN,
+    },
 }
 
 
