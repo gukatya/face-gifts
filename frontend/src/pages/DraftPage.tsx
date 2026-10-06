@@ -107,6 +107,10 @@ export default function DraftPage() {
   const [editingCountId, setEditingCountId] = useState<number | null>(null);
   const [editingCountVal, setEditingCountVal] = useState(1);
 
+  // Certificate inline input
+  const [certSetId, setCertSetId] = useState<number | null>(null);
+  const [certPrice, setCertPrice] = useState("");
+
   // Boss approval popup
   const [showBossPopup, setShowBossPopup] = useState(false);
   const [bossComment, setBossComment] = useState("");
@@ -406,6 +410,22 @@ export default function DraftPage() {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const addCertificate = (gs: GiftSet) => {
+    const price = parseInt(certPrice.replace(/\D/g, ""), 10);
+    if (!price || price <= 0) return;
+    const current = getItems(gs);
+    const newItem: GiftItem = {
+      sku_type: "certificate",
+      sku_id: Date.now(),
+      name: `Сертификат ${price.toLocaleString("ru-RU")} ₽`,
+      qty: 1,
+      price,
+    };
+    setDirtyItems((prev) => ({ ...prev, [gs.id]: [...current, newItem] }));
+    setCertSetId(null);
+    setCertPrice("");
   };
 
   const addItem = (gs: GiftSet, entry: CatalogEntry) => {
@@ -902,7 +922,38 @@ export default function DraftPage() {
                     </div>
 
                     {/* Add item (compact) + totals — single row */}
-                    <div className="mt-3 flex items-center gap-3">
+                    <div className="mt-3 flex items-center gap-3 flex-wrap">
+                      {/* Certificate inline input */}
+                      {certSetId === gs.id ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <input
+                            autoFocus
+                            type="number"
+                            min={1}
+                            className="input text-sm w-32 py-1.5"
+                            placeholder="Сумма, ₽"
+                            value={certPrice}
+                            onChange={(e) => setCertPrice(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") addCertificate(gs);
+                              if (e.key === "Escape") { setCertSetId(null); setCertPrice(""); }
+                            }}
+                          />
+                          <button
+                            className="btn-primary text-xs px-3 py-1.5"
+                            onClick={() => addCertificate(gs)}
+                          >Добавить</button>
+                          <button
+                            className="text-xs text-black/40 hover:text-black/70"
+                            onClick={() => { setCertSetId(null); setCertPrice(""); }}
+                          >✕</button>
+                        </div>
+                      ) : (
+                        <button
+                          className="badge bg-black/5 text-black/50 hover:bg-black/10 cursor-pointer text-xs px-3 py-1.5 shrink-0"
+                          onClick={() => { setCertSetId(gs.id); setCertPrice(""); }}
+                        >+ Сертификат</button>
+                      )}
                       <div className="relative w-56 shrink-0">
                         <input
                           ref={isAddingToThis ? addInputRef : undefined}
