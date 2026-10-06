@@ -342,7 +342,8 @@ def _build_total(event: Event, sets: list) -> int:
         elif gs.place == "гран-при":
             multiplier = max(event.grand_prix_count or 1, 1)
         elif gs.place == "розыгрыш":
-            multiplier = max(event.giveaways_count or 1, 1)
+            gm = getattr(event, "giveaway_mode", None) or "одинаковые"
+            multiplier = 1 if gm == "разные" else max(event.giveaways_count or 1, 1)
         total_all += set_total * multiplier
     return int(total_all)
 

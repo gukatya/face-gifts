@@ -43,7 +43,7 @@ def _get_set_count(gs: GiftSet, event: Event) -> int:
     if gs.place == "участник":
         return max(event.participants_count or 1, 1)
     if gs.place == "гран-при":
-        return 1
+        return max(getattr(event, "grand_prix_count", None) or 1, 1)
     if gs.place == "розыгрыш":
         gm = getattr(event, "giveaway_mode", None) or "одинаковые"
         return 1 if gm == "разные" else max(event.giveaways_count or 1, 1)
