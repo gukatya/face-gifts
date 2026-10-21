@@ -481,6 +481,29 @@ def seed_packaging(db: Session) -> int:
     return count
 
 
+def seed_diluent(db: Session) -> int:
+    """Add Разбавитель 6 мл as a consumable."""
+    from sqlalchemy import func as sqlfunc
+    existing = db.query(Consumable).filter(Consumable.name == "Разбавитель 6 мл").first()
+    if existing:
+        return 0
+    max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
+    c = Consumable(
+        number=max_num + 1,
+        name="Разбавитель 6 мл",
+        category="Расходники",
+        zone=None,
+        price_ru=190,
+        price_eu=None,
+        has_mini=False,
+        gift_priority="средний",
+        notes=None,
+    )
+    db.add(c)
+    db.commit()
+    return 1
+
+
 def seed_certificate(db: Session) -> int:
     """Add certificate catalog item with price 0 (price set freely per gift set)."""
     from sqlalchemy import func as sqlfunc
@@ -575,6 +598,7 @@ def seed_all(db: Session) -> dict:
         "redy_pigments": seed_redy_pigments(db),
         "consumables": seed_consumables(db),
         "packaging": seed_packaging(db),
+        "diluent": seed_diluent(db),
         "certificate": seed_certificate(db),
         "nominations": seed_nominations(db),
         "extra_nominations": seed_extra_nominations(db),
