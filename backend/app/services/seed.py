@@ -447,6 +447,10 @@ _PACKAGING_ITEMS = [
     {"name": "Коробка education 8 шт 6 мл", "price_ru": 0.0},
     {"name": "Коробка education 5 шт 12 мл", "price_ru": 0.0},
     {"name": "Пакет бумажный сильвер", "price_ru": 0.0},
+    {"name": "Сет FACE EDUCATION 5 шт 5 мл", "price_ru": 0.0},
+    {"name": "Сет FACE EDUCATION 5 шт 12 мл", "price_ru": 0.0},
+    {"name": "Сет FACE EDUCATION 8 шт 5 мл", "price_ru": 0.0},
+    {"name": "Сет FACE EDUCATION 8 шт 12 мл", "price_ru": 0.0},
 ]
 
 
