@@ -482,26 +482,33 @@ def seed_packaging(db: Session) -> int:
 
 
 def seed_diluent(db: Session) -> int:
-    """Add Разбавитель 6 мл as a consumable."""
+    """Add Разбавитель 6 мл and Вторичка ICE Gel 6мл (мини) as consumables."""
     from sqlalchemy import func as sqlfunc
-    existing = db.query(Consumable).filter(Consumable.name == "Разбавитель 6 мл").first()
-    if existing:
-        return 0
-    max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
-    c = Consumable(
-        number=max_num + 1,
-        name="Разбавитель 6 мл",
-        category="Расходники",
-        zone=None,
-        price_ru=190,
-        price_eu=None,
-        has_mini=False,
-        gift_priority="средний",
-        notes=None,
-    )
-    db.add(c)
+    count = 0
+    items = [
+        {"name": "Разбавитель 6 мл", "category": "Уход / прочее", "price_ru": 190},
+        {"name": "Вторичка ICE Gel 6мл (мини)", "category": "Анестезия", "price_ru": 350},
+    ]
+    for item in items:
+        existing = db.query(Consumable).filter(Consumable.name == item["name"]).first()
+        if existing:
+            continue
+        max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
+        c = Consumable(
+            number=max_num + 1,
+            name=item["name"],
+            category=item["category"],
+            zone=None,
+            price_ru=item["price_ru"],
+            price_eu=None,
+            has_mini=False,
+            gift_priority="средний",
+            notes=None,
+        )
+        db.add(c)
+        count += 1
     db.commit()
-    return 1
+    return count
 
 
 def seed_certificate(db: Session) -> int:
