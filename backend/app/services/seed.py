@@ -540,13 +540,14 @@ def seed_diluent(db: Session) -> int:
         {"name": "Разбавитель 6 мл", "category": "Уход / прочее", "price_ru": 190},
         {"name": "Вторичка ICE Gel 6мл (мини)", "category": "Анестезия", "price_ru": 350},
     ]
+    max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
     for item in items:
         existing = db.query(Consumable).filter(Consumable.name == item["name"]).first()
         if existing:
             continue
-        max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
+        max_num += 1
         c = Consumable(
-            number=max_num + 1,
+            number=max_num,
             name=item["name"],
             category=item["category"],
             zone=None,
