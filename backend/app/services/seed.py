@@ -481,6 +481,57 @@ def seed_packaging(db: Session) -> int:
     return count
 
 
+_SPECIAL_PIGMENTS = [
+    {"name": "Пигмент для камуфлирования 01", "zone": "Специальные зоны", "line": "Камуфляж"},
+    {"name": "Пигмент для камуфлирования 02", "zone": "Специальные зоны", "line": "Камуфляж"},
+    {"name": "Пигмент для камуфлирования 03", "zone": "Специальные зоны", "line": "Камуфляж"},
+    {"name": "Пигмент для камуфлирования 04", "zone": "Специальные зоны", "line": "Камуфляж"},
+    {"name": "Пигмент для камуфлирования 05", "zone": "Специальные зоны", "line": "Камуфляж"},
+    {"name": "Пигмент для ареолы 01", "zone": "Специальные зоны", "line": "Ареолы"},
+    {"name": "Пигмент для ареолы 02", "zone": "Специальные зоны", "line": "Ареолы"},
+    {"name": "Пигмент для ареолы 03", "zone": "Специальные зоны", "line": "Ареолы"},
+    {"name": "Пигмент для ареолы 04", "zone": "Специальные зоны", "line": "Ареолы"},
+    {"name": "Пигмент для ареолы 05", "zone": "Специальные зоны", "line": "Ареолы"},
+]
+
+
+def seed_special_pigments(db: Session) -> int:
+    """Add camouflage and areola pigments (12ml, 2690₽)."""
+    count = 0
+    next_number = _next_pigment_number(db)
+    for item in _SPECIAL_PIGMENTS:
+        existing = db.query(Pigment).filter(
+            Pigment.name == item["name"], Pigment.volume_ml == "12мл"
+        ).first()
+        if existing:
+            continue
+        p = Pigment(
+            number=next_number,
+            zone=item["zone"],
+            line=item["line"],
+            name=item["name"],
+            temperature=None,
+            saturation=None,
+            role="база",
+            fitzpatrick=None,
+            is_corrector=False,
+            geo_europe=True,
+            geo_asia=True,
+            priority="стандарт",
+            price_ru=2690.0,
+            price_eu=None,
+            recommended_mixes=None,
+            notes="12мл",
+            is_mini=False,
+            volume_ml="12мл",
+        )
+        db.add(p)
+        count += 1
+        next_number += 1
+    db.commit()
+    return count
+
+
 def seed_diluent(db: Session) -> int:
     """Add Разбавитель 6 мл and Вторичка ICE Gel 6мл (мини) as consumables."""
     from sqlalchemy import func as sqlfunc
@@ -603,6 +654,7 @@ def seed_all(db: Session) -> dict:
         "volume_tiers": seed_pigment_volume_tiers(db),
         "mini_pigments": seed_mini_pigments(db),
         "redy_pigments": seed_redy_pigments(db),
+        "special_pigments": seed_special_pigments(db),
         "consumables": seed_consumables(db),
         "packaging": seed_packaging(db),
         "diluent": seed_diluent(db),
