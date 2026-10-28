@@ -546,7 +546,7 @@ function PigmentsTab({ regions }: { regions: string[] }) {
   const [formTarget, setFormTarget] = useState<(PigmentCreate & { id?: number }) | null | "new">(null);
 
   const regionOptions = ["Глобально", ...regions];
-  const zoneOptions = ["Все", "Брови", "Губы", "Веки"];
+  const zoneOptions = ["Все", "Брови", "Губы", "Веки", "Камуфляж и ареола"];
 
   const loadPigments = useCallback(async () => {
     setLoading(true);
