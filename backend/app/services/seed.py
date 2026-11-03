@@ -542,6 +542,7 @@ def seed_diluent(db: Session) -> int:
     items = [
         {"name": "Разбавитель 6 мл", "category": "Уход / прочее", "price_ru": 190},
         {"name": "Вторичка ICE Gel 6мл (мини)", "category": "Анестезия", "price_ru": 350},
+        {"name": "Коврик тренировочный (латекс)", "category": "Инструменты", "price_ru": 100},
     ]
     max_num = db.query(sqlfunc.max(Consumable.number)).scalar() or 0
     for item in items:
