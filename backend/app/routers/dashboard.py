@@ -12,9 +12,15 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 SHIP_DAYS_BEFORE = 14  # send gifts 2 weeks before the event
 
 
-def _event_month(ev: Event) -> str:
-    """Return YYYY-MM string for the month of the event date."""
-    return ev.date[:7] if ev.date else "0000-00"
+def _ship_month(ev: Event) -> str:
+    """Return YYYY-MM for the month when gifts were/should be shipped."""
+    if ev.shipped_date:
+        return ev.shipped_date[:7]
+    try:
+        ev_date = date.fromisoformat(ev.date)
+        return (ev_date - timedelta(days=SHIP_DAYS_BEFORE)).strftime("%Y-%m")
+    except Exception:
+        return ev.date[:7] if ev.date else "0000-00"
 
 
 def _set_multiplier(gs: GiftSet, ev: Event) -> int:
@@ -54,7 +60,7 @@ def get_stats(db: Session = Depends(get_db)):
     geo: dict = defaultdict(lambda: {"events_count": 0, "total_cost": 0, "countries": set()})
 
     for ev in events:
-        month = _event_month(ev)
+        month = _ship_month(ev)
         m = monthly[month]
         m["events_count"] += 1
         ev_cost = 0
