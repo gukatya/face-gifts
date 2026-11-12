@@ -33,7 +33,8 @@ def _set_multiplier(gs: GiftSet, ev: Event) -> int:
     if place == "гран-при":
         return max(ev.grand_prix_count or 1, 1)
     if place == "розыгрыш":
-        return max(ev.giveaways_count or 1, 1)
+        gm = getattr(ev, "giveaway_mode", None) or "одинаковые"
+        return 1 if gm == "разные" else max(ev.giveaways_count or 1, 1)
     if place in ("1", "2", "3"):
         noms = ev.nominations_data or []
         nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
@@ -65,13 +66,13 @@ def get_stats(db: Session = Depends(get_db)):
         month = _ship_month(ev)
         m = monthly[month]
         m["events_count"] += 1
+        ev_cost = 0
         if ev.gifts_sent:
             m["shipped_count"] += 1
             # actual_cost: only shipped events, bucketed by actual shipped_date
             shipped_month = ev.shipped_date[:7] if ev.shipped_date else month
             sm = monthly[shipped_month]
             sets_for_ev = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
-            ev_cost = 0
             for gs in sets_for_ev:
                 mult = _set_multiplier(gs, ev)
                 ev_cost += gs.total_price * mult
@@ -79,9 +80,8 @@ def get_stats(db: Session = Depends(get_db)):
                 ev_cost = ev.total_budget or 0
             sm["actual_cost"] += ev_cost
 
-        # items — only for sent events
-        if ev.gifts_sent:
-            sets = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
+            # items — only for sent events
+            sets = sets_for_ev
             for gs in sets:
                 mult = _set_multiplier(gs, ev)
                 for item in (gs.items or []):
@@ -91,10 +91,10 @@ def get_stats(db: Session = Depends(get_db)):
                     entry["sku_type"] = item.get("sku_type", "")
                     entry["qty"] += item.get("qty", 1) * mult
 
-        # geography
+        # geography — use total_budget for not-yet-shipped events
         region = ev.region or "Прочее"
         geo[region]["events_count"] += 1
-        geo[region]["total_cost"] += ev_cost
+        geo[region]["total_cost"] += ev_cost if ev.gifts_sent else (ev.total_budget or 0)
         geo[region]["countries"].add(ev.country or "")
 
     # ── build monthly_stats list ──────────────────────────────────────────────
@@ -195,10 +195,11 @@ def items_report(
     result: dict = {}  # key → {name, sku_type, category, volume_ml, qty, total_price}
 
     for ev in events:
-        shipped = ev.shipped_date or ""
-        if date_from and shipped < date_from:
+        # Use actual shipped_date if set, otherwise fall back to event date
+        ref_date = ev.shipped_date or ev.date or ""
+        if date_from and ref_date < date_from:
             continue
-        if date_to and shipped > date_to:
+        if date_to and ref_date > date_to:
             continue
 
         sets = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()

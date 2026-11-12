@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const [trash, setTrash] = useState<Event[]>([]);
   const [trashOpen, setTrashOpen] = useState(false);
   const [myOnly, setMyOnly] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   useEffect(() => {
     api.events.list().then(setEvents).finally(() => setLoading(false));
     api.proposals.stats().then((s) => setNewProposalsCount(s.new_count)).catch(() => {});
@@ -121,12 +122,21 @@ export default function DashboardPage() {
 
   const visibleEvents = events;
 
+  // Build list of months from events
+  const presentMonths = [...new Set(visibleEvents.map((e) => e.date?.slice(0, 7)).filter(Boolean))].sort().reverse();
+  const MONTH_NAMES = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+  function formatMonth(ym: string) {
+    const [y, m] = ym.split("-");
+    return `${MONTH_NAMES[+m - 1]} ${y}`;
+  }
+
   const filtered = sortEvents(
     visibleEvents.filter((e) => {
       const matchSearch = e.name.toLowerCase().includes(search.toLowerCase());
       const matchType = typeFilter === "all" || e.event_type === typeFilter;
       const matchMy = !myOnly || e.created_by === userName;
-      return matchSearch && matchType && matchMy;
+      const matchMonth = monthFilter === "all" || e.date?.startsWith(monthFilter);
+      return matchSearch && matchType && matchMy && matchMonth;
     }),
     sort,
   );
@@ -185,7 +195,22 @@ export default function DashboardPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="flex items-center gap-2 sm:ml-auto">
+          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
+            {presentMonths.length > 1 && (
+              <>
+                <span className="text-xs text-black/40 whitespace-nowrap">Месяц:</span>
+                <select
+                  className="input py-1.5 text-sm"
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(e.target.value)}
+                >
+                  <option value="all">Все месяцы</option>
+                  {presentMonths.map((m) => (
+                    <option key={m} value={m}>{formatMonth(m)}</option>
+                  ))}
+                </select>
+              </>
+            )}
             <span className="text-xs text-black/40 whitespace-nowrap">Сортировка:</span>
             <select
               className="input py-1.5 text-sm"
