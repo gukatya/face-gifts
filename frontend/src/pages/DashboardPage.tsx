@@ -188,30 +188,26 @@ export default function DashboardPage() {
 
       {/* Controls */}
       <div className="flex flex-col gap-3 mb-6">
-        <div className="flex gap-3 flex-col sm:flex-row">
+        <div className="flex gap-2 flex-col sm:flex-row sm:items-center">
           <input
             className="input w-full sm:max-w-xs"
             placeholder="Поиск по названию..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="flex items-center gap-2 flex-wrap sm:ml-auto">
+          <div className="flex items-center gap-2 sm:ml-auto flex-wrap">
             {presentMonths.length > 1 && (
-              <>
-                <span className="text-xs text-black/40 whitespace-nowrap">Месяц:</span>
-                <select
-                  className="input py-1.5 text-sm"
-                  value={monthFilter}
-                  onChange={(e) => setMonthFilter(e.target.value)}
-                >
-                  <option value="all">Все месяцы</option>
-                  {presentMonths.map((m) => (
-                    <option key={m} value={m}>{formatMonth(m)}</option>
-                  ))}
-                </select>
-              </>
+              <select
+                className="input py-1.5 text-sm"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+              >
+                <option value="all">Все месяцы</option>
+                {presentMonths.map((m) => (
+                  <option key={m} value={m}>{formatMonth(m)}</option>
+                ))}
+              </select>
             )}
-            <span className="text-xs text-black/40 whitespace-nowrap">Сортировка:</span>
             <select
               className="input py-1.5 text-sm"
               value={sort}
