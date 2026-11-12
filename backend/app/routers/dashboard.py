@@ -12,18 +12,9 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 SHIP_DAYS_BEFORE = 14  # send gifts 2 weeks before the event
 
 
-def _ship_month(ev: Event) -> str:
-    """Return YYYY-MM string for the month when gifts should be / were shipped."""
-    if ev.shipped_date:
-        try:
-            return ev.shipped_date[:7]
-        except Exception:
-            pass
-    try:
-        ev_date = date.fromisoformat(ev.date)
-        return (ev_date - timedelta(days=SHIP_DAYS_BEFORE)).strftime("%Y-%m")
-    except Exception:
-        return ev.date[:7] if ev.date else "0000-00"
+def _event_month(ev: Event) -> str:
+    """Return YYYY-MM string for the month of the event date."""
+    return ev.date[:7] if ev.date else "0000-00"
 
 
 def _set_multiplier(gs: GiftSet, ev: Event) -> int:
@@ -63,26 +54,22 @@ def get_stats(db: Session = Depends(get_db)):
     geo: dict = defaultdict(lambda: {"events_count": 0, "total_cost": 0, "countries": set()})
 
     for ev in events:
-        month = _ship_month(ev)
+        month = _event_month(ev)
         m = monthly[month]
         m["events_count"] += 1
         ev_cost = 0
         if ev.gifts_sent:
             m["shipped_count"] += 1
-            # actual_cost: only shipped events, bucketed by actual shipped_date
-            shipped_month = ev.shipped_date[:7] if ev.shipped_date else month
-            sm = monthly[shipped_month]
             sets_for_ev = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
             for gs in sets_for_ev:
                 mult = _set_multiplier(gs, ev)
                 ev_cost += gs.total_price * mult
             if ev_cost == 0:
                 ev_cost = ev.total_budget or 0
-            sm["actual_cost"] += ev_cost
+            m["actual_cost"] += ev_cost
 
             # items — only for sent events
-            sets = sets_for_ev
-            for gs in sets:
+            for gs in sets_for_ev:
                 mult = _set_multiplier(gs, ev)
                 for item in (gs.items or []):
                     key = f"{item.get('sku_type')}:{item.get('sku_id')}"
