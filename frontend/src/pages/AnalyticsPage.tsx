@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import * as XLSX from "xlsx";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import type { Event, DashboardStats, DashboardMonthStat } from "../types";
@@ -381,39 +382,43 @@ export default function AnalyticsPage() {
     if (itemsMasterGroup) filterLines.push(`Мастер: ${masterGroups.get(itemsMasterGroup)?.display ?? itemsMasterGroup}`);
     if (itemsSearch) filterLines.push(`Поиск: ${itemsSearch}`);
 
-    const rows: string[][] = [];
-    rows.push(["Отчёт по позициям FACE Gifts"]);
-    rows.push([`Выгружено: ${new Date().toLocaleDateString("ru-RU")}`]);
+    const wb = XLSX.utils.book_new();
+
+    // Build rows
+    const headerRows: (string | number)[][] = [
+      ["Отчёт по позициям FACE Gifts"],
+      [`Выгружено: ${new Date().toLocaleDateString("ru-RU")}`],
+    ];
     if (filterLines.length > 0) {
-      rows.push(["Фильтры:"]);
-      filterLines.forEach((l) => rows.push([`  ${l}`]));
+      headerRows.push(["Фильтры: " + filterLines.join(" | ")]);
     }
-    rows.push([]);
-    rows.push(["#", "Позиция", "Тип", "Объём", "Категория", "Кол-во", "Сумма, ₽"]);
-    filtered.forEach((item, i) => {
-      rows.push([
-        String(i + 1),
-        item.name,
-        item.sku_type === "pigment" ? "Пигмент" : item.sku_type === "sample" ? "Мини-сэт" : item.sku_type === "consumable" ? "Расходник" : "Сертификат",
-        item.volume_ml || "",
-        item.category || "",
-        String(item.qty),
-        item.total_price > 0 ? String(Math.round(item.total_price)) : "0",
-      ]);
-    });
+    headerRows.push([]);
+
+    const tableHeader = ["#", "Позиция", "Тип", "Объём", "Категория", "Кол-во", "Сумма, ₽"];
+    const dataRows = filtered.map((item, i) => [
+      i + 1,
+      item.name,
+      item.sku_type === "pigment" ? "Пигмент" : item.sku_type === "sample" ? "Мини-сэт" : item.sku_type === "consumable" ? "Расходник" : "Сертификат",
+      item.volume_ml || "",
+      item.category || "",
+      item.qty,
+      item.total_price > 0 ? Math.round(item.total_price) : 0,
+    ]);
+
     const totalQty = filtered.reduce((s, i) => s + i.qty, 0);
     const totalPrice = filtered.reduce((s, i) => s + i.total_price, 0);
-    rows.push(["", "ИТОГО", "", "", "", String(totalQty), String(Math.round(totalPrice))]);
+    const totalRow = ["", "ИТОГО", "", "", "", totalQty, Math.round(totalPrice)];
 
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(";")).join("\n");
-    const bom = "﻿";
-    const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `FACE_items_report_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const allRows = [...headerRows, tableHeader, ...dataRows, [], totalRow];
+    const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+    // Column widths
+    ws["!cols"] = [
+      { wch: 4 }, { wch: 44 }, { wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 8 }, { wch: 14 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Отчёт по позициям");
+    XLSX.writeFile(wb, `FACE_items_report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const loadItemsReport = useCallback(() => {
