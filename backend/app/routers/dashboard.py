@@ -25,6 +25,7 @@ def _ship_month(ev: Event) -> str:
 
 def _set_multiplier(gs: GiftSet, ev: Event) -> int:
     place = gs.place
+    noms = ev.nominations_data or []
     if place == "участник":
         return max(ev.participants_count or 1, 1)
     if place == "гран-при":
@@ -33,10 +34,14 @@ def _set_multiplier(gs: GiftSet, ev: Event) -> int:
         gm = getattr(ev, "giveaway_mode", None) or "одинаковые"
         return 1 if gm == "разные" else max(ev.giveaways_count or 1, 1)
     if place in ("1", "2", "3"):
-        noms = ev.nominations_data or []
         nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
         if nom:
             return max(nom.get(f"place{place}", 1), 1)
+    if place == "набор":
+        # custom nomination — count is stored in nominations_data[*].place1
+        nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
+        if nom:
+            return max(nom.get("place1", 1), 1)
     return 1
 
 
