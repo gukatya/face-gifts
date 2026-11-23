@@ -39,7 +39,14 @@ def _c(ws, row, col, value="", bold=False, size=10, color="000000",
 _TYPE_ORDER = {"sample": 0, "pigment": 1, "consumable": 2, "certificate": 3}
 
 
-def _get_set_count(gs: GiftSet, event: Event) -> int:
+def _get_set_count(gs: GiftSet, event: Event, all_sets=None) -> int:
+    # If multiple sets share this place with distinct nomination names,
+    # each represents a single recipient (e.g. Гран-при 1/2/3 as separate sets)
+    if all_sets and gs.place in ("гран-при", "участник", "розыгрыш"):
+        same_place = [s for s in all_sets if s.place == gs.place]
+        if len(same_place) > 1 and len({s.nomination_name for s in same_place}) > 1:
+            return 1
+
     if gs.place == "участник":
         return max(event.participants_count or 1, 1)
     if gs.place == "гран-при":
@@ -111,7 +118,7 @@ def export_event_to_excel(event: Event, sets: list[GiftSet]) -> bytes:
     agg: dict = defaultdict(lambda: {"qty": 0, "price": 0})
 
     for gs in sets:
-        count = _get_set_count(gs, event)
+        count = _get_set_count(gs, event, all_sets=sets)
         for item in gs.items or []:
             key = (
                 item.get("sku_type", "consumable"),
@@ -276,7 +283,7 @@ def export_event_organizer(event: Event, sets: list[GiftSet]) -> bytes:
     sorted_sets = sorted(sets, key=lambda s: (place_order.get(s.place, 9), s.nomination_name or ""))
 
     for gs_idx, gs in enumerate(sorted_sets):
-        count = _get_set_count(gs, event)
+        count = _get_set_count(gs, event, all_sets=sets)
         items = sort_items_for_display(gs.items or [])
         n_items = len(items)
         if n_items == 0:

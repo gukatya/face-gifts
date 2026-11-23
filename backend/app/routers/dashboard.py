@@ -23,9 +23,17 @@ def _ship_month(ev: Event) -> str:
         return ev.date[:7] if ev.date else "0000-00"
 
 
-def _set_multiplier(gs: GiftSet, ev: Event) -> int:
+def _set_multiplier(gs: GiftSet, ev: Event, all_sets=None) -> int:
     place = gs.place
     noms = ev.nominations_data or []
+
+    # If multiple sets share this place with distinct nomination names,
+    # each represents a single recipient (e.g. Гран-при 1/2/3 as separate sets)
+    if all_sets and place in ("гран-при", "участник", "розыгрыш"):
+        same_place = [s for s in all_sets if s.place == place]
+        if len(same_place) > 1 and len({s.nomination_name for s in same_place}) > 1:
+            return 1
+
     if place == "участник":
         return max(ev.participants_count or 1, 1)
     if place == "гран-при":
@@ -73,7 +81,7 @@ def get_stats(db: Session = Depends(get_db)):
             m["shipped_count"] += 1
             sets_for_ev = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
             for gs in sets_for_ev:
-                mult = _set_multiplier(gs, ev)
+                mult = _set_multiplier(gs, ev, all_sets=sets_for_ev)
                 ev_cost += gs.total_price * mult
             if ev_cost == 0:
                 ev_cost = ev.total_budget or 0
@@ -81,7 +89,7 @@ def get_stats(db: Session = Depends(get_db)):
 
             # items — only for sent events
             for gs in sets_for_ev:
-                mult = _set_multiplier(gs, ev)
+                mult = _set_multiplier(gs, ev, all_sets=sets_for_ev)
                 for item in (gs.items or []):
                     key = f"{item.get('sku_type')}:{item.get('sku_id')}"
                     entry = m["items"][key]
@@ -202,7 +210,7 @@ def items_report(
 
         sets = db.query(GiftSet).filter(GiftSet.event_id == ev.id).all()
         for gs in sets:
-            mult = _set_multiplier(gs, ev)
+            mult = _set_multiplier(gs, ev, all_sets=sets)
             for item in (gs.items or []):
                 t = item.get("sku_type", "")
                 if sku_type and sku_type != "all" and t != sku_type:
