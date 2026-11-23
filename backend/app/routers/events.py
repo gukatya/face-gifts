@@ -329,19 +329,27 @@ def _build_total(event: Event, sets: list) -> int:
         multiplier = 1
         noms = event.nominations_data or []
         nom = next((n for n in noms if n.get("name") == gs.nomination_name), None)
-        if gs.place in ("1", "2", "3"):
+
+        place = gs.place
+        # If multiple sets share this place with distinct names, each is for 1 recipient
+        if place in ("гран-при", "участник", "розыгрыш"):
+            same_place = [s for s in sets if s.place == place]
+            if len(same_place) > 1 and len({s.nomination_name for s in same_place}) > 1:
+                total_all += set_total
+                continue
+
+        if place in ("1", "2", "3"):
             if nom:
-                key = f"place{gs.place}"
+                key = f"place{place}"
                 multiplier = max(nom.get(key, 1), 1)
-        elif gs.place == "набор":
-            # custom event — count stored in nominations_data place1
+        elif place == "набор":
             if nom:
                 multiplier = max(nom.get("place1", 1), 1)
-        elif gs.place == "участник":
+        elif place == "участник":
             multiplier = max(event.participants_count or 1, 1)
-        elif gs.place == "гран-при":
+        elif place == "гран-при":
             multiplier = max(event.grand_prix_count or 1, 1)
-        elif gs.place == "розыгрыш":
+        elif place == "розыгрыш":
             gm = getattr(event, "giveaway_mode", None) or "одинаковые"
             multiplier = 1 if gm == "разные" else max(event.giveaways_count or 1, 1)
         total_all += set_total * multiplier
